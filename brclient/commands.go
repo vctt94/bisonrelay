@@ -1226,6 +1226,300 @@ var gcCommands = []tuicmd{
 	},
 }
 
+var ptCommands = []tuicmd{
+	{
+		cmd:           "new",
+		usableOffline: true,
+		usage:         "<pt name>",
+		descr:         "Create a new poker table named <pt name>",
+		handler: func(args []string, as *appState) error {
+			if len(args) < 1 {
+				return usageError{msg: "pt name cannot be empty"}
+			}
+			if _, err := as.c.NewPokerTable(args[0]); err != nil {
+				return err
+			}
+			as.cwHelpMsg("PT %q created", args[0])
+			return nil
+		},
+	}, {
+		cmd:   "invite",
+		usage: "<pt name> <nick>",
+		descr: "invite the user with the given nick to join the given pt",
+		handler: func(args []string, as *appState) error {
+			if len(args) < 1 {
+				return usageError{"pt name cannot be empty"}
+			}
+			if len(args) < 2 {
+				return usageError{"invitee name cannot be empty"}
+			}
+
+			gcname, nick := args[0], args[1]
+			ptID, err := as.c.PTIDByName(gcname)
+			if err != nil {
+				return err
+			}
+			if _, err := as.c.GetPT(ptID); err != nil {
+				return err
+			}
+			cw := as.findOrNewPTWindow(ptID)
+			uid, err := as.c.UIDByNick(nick)
+			if err != nil {
+				return err
+			}
+
+			go as.inviteToPT(cw, args[1], uid)
+			return nil
+		},
+		completer: func(args []string, arg string, as *appState) []string {
+			if len(args) == 0 {
+				return gcCompleter(arg, as)
+			}
+			if len(args) == 1 {
+				return nickCompleter(arg, as)
+			}
+			return nil
+		},
+	},
+	{
+		cmd:     "act",
+		aliases: []string{"m"},
+		usage:   "<pt name> <action>",
+		descr:   "send an action to the given PT",
+		rawHandler: func(rawCmd string, args []string, as *appState) error {
+			if len(args) < 1 {
+				return usageError{"pt name cannot be empty"}
+			}
+			if len(args) < 2 {
+				return usageError{"action cannot be empty"}
+			}
+
+			gcname := args[0]
+			gcID, err := as.c.PTIDByName(gcname)
+			if err != nil {
+				return err
+			}
+
+			_, msg := popNArgs(rawCmd, 3) // cmd + subcmd + gcname
+
+			if _, err := as.c.GetPT(gcID); err != nil {
+				return err
+			}
+			cw := as.findOrNewPTWindow(gcID)
+			go as.act(cw, msg)
+			return nil
+		},
+		completer: func(args []string, arg string, as *appState) []string {
+			if len(args) == 0 {
+				return gcCompleter(arg, as)
+			}
+			return nil
+		},
+	},
+	{
+		cmd:   "join",
+		usage: "<pt name>",
+		descr: "Join the given PT we were invited to",
+		handler: func(args []string, as *appState) error {
+			if len(args) < 1 {
+				return usageError{"invitation id cannot be empty"}
+			}
+
+			gcName := args[0]
+			as.ptInvitesMtx.Lock()
+			iid, ok := as.ptInvites[gcName]
+			as.ptInvitesMtx.Unlock()
+			fmt.Printf("as.ptInvites: %v, iid: %v, ok: %v", as.ptInvites, iid, ok)
+			if !ok {
+				// Try to find it in the db.
+				invites, err := as.c.ListPTInvitesFor(nil)
+				if err != nil {
+					return err
+				}
+
+				for i := len(invites) - 1; i >= 0; i-- {
+					if invites[i].Invite.Name == gcName && !invites[i].Accepted {
+						iid = invites[i].ID
+						ok = true
+						break
+					}
+				}
+
+				if !ok {
+					return fmt.Errorf("unrecognized pt invite %q", gcName)
+				}
+			}
+
+			go func() {
+				err := as.c.AcceptPokerTableInvite(iid)
+				if err != nil {
+					as.diagMsg("Unable to join pt %q: %v",
+						gcName, err)
+				} else {
+					as.diagMsg("Accepting invitation to join pt %q", gcName)
+				}
+			}()
+			return nil
+		},
+	}, {
+		cmd:           "list",
+		usableOffline: true,
+		usage:         "[<pt name>]",
+		aliases:       []string{"l"},
+		descr:         "List the PTs we're a member of or members of a PT",
+		handler: func(args []string, as *appState) error {
+			if len(args) == 0 {
+				pts, err := as.c.ListPTs()
+				if err != nil {
+					return err
+				}
+				fmt.Printf("pts: %+v\n\n", pts)
+				var maxNameLen int
+				gcNames := make(map[clientintf.ID]string, len(pts))
+				for _, gc := range pts {
+					alias, err := as.c.GetPTAlias(gc.ID)
+					if err != nil {
+						alias = gc.ID.ShortLogID()
+					} else {
+						alias = strescape.Nick(alias)
+					}
+					gcNames[gc.ID] = alias
+					nameLen := lipgloss.Width(alias)
+					if nameLen > maxNameLen {
+						maxNameLen = nameLen
+					}
+				}
+				maxNameLen = clamp(maxNameLen, 5, as.winW-64-10)
+
+				sort.Slice(pts, func(i, j int) bool {
+					ni := gcNames[pts[i].ID]
+					nj := gcNames[pts[j].ID]
+					return as.collator.CompareString(ni, nj) < 0
+				})
+
+				as.cwHelpMsgs(func(pf printf) {
+					pf("")
+					pf("List of PTs:")
+					for _, pt := range pts {
+						ptAlias := gcNames[pt.ID]
+						pf("%*s - %s - %d members",
+							maxNameLen,
+							ptAlias,
+							pt.ID,
+							len(pt.Members))
+					}
+				})
+
+				return nil
+			}
+
+			gcID, err := as.c.PTIDByName(args[0])
+			if err != nil {
+				return err
+			}
+
+			gc, err := as.c.GetPT(gcID)
+			if err != nil {
+				return err
+			}
+			gcName, _ := as.c.GetPTAlias(gcID)
+			if gcName == "" {
+				gcName = args[0]
+			}
+
+			// gcbl, err := as.c.GetGCBlockList(gcID)
+			// if err != nil {
+			// 	return err
+			// }
+
+			// Collect and sort members according to display order.
+			var maxNickW int
+			members := slices.Clone(gc.Members[:])
+			myID := as.c.PublicID()
+			if idx := slices.Index(members, myID); idx > -1 {
+				// Remove local client id from list.
+				members = slices.Delete(members, idx, idx+1)
+			}
+			users := make(map[clientintf.UserID]*client.RemoteUser, len(members))
+			for _, uid := range members {
+				ru, _ := as.c.UserByID(uid)
+				users[uid] = ru
+				if ru != nil {
+					nick := ru.Nick()
+					nicklen := lipgloss.Width(nick)
+					if nicklen > maxNickW {
+						maxNickW = nicklen
+					}
+				}
+			}
+			sort.Slice(members, func(i, j int) bool {
+				ui := users[members[i]]
+				uj := users[members[j]]
+				if ui != nil && uj != nil {
+					ni := ui.Nick()
+					nj := uj.Nick()
+					return as.collator.CompareString(ni, nj) < 0
+				}
+				if uj == nil && ui == nil {
+					return members[i].Less(&members[j])
+				}
+				if uj == nil && ui != nil {
+					return true
+				}
+				return false
+			})
+
+			maxNickW = clamp(maxNickW, 5, as.winW-64-10)
+
+			as.cwHelpMsgs(func(pf printf) {
+				pf("")
+				pf("PT %q - %s", gcName, gc.ID.String())
+				pf("Version: %d, Generation: %d, Timestamp: %s",
+					gc.Version, gc.Generation,
+					time.Unix(gc.Timestamp, 0).Format(ISO8601DateTime))
+				if gc.Members[0] == myID {
+					pf("Local client is owner of this GC")
+				} else if slices.Contains(gc.ExtraAdmins, myID) {
+					pf("Local client is admin of this GC")
+				}
+				pf("Members (%d + local client)", len(members))
+				firstUknown := true
+				for _, uid := range members {
+					var ignored string
+					if uid == gc.Members[0] {
+						ignored += " (owner)"
+					} else if slices.Contains(gc.ExtraAdmins, uid) {
+						ignored += " (admin)"
+					}
+					// if gcbl.IsBlocked(uid) {
+					// 	ignored += " (in GC blocklist)"
+					// }
+					ru := users[uid]
+					if ru == nil {
+						if firstUknown {
+							pf("")
+							pf("Uknonwn or KX incomplete members")
+							firstUknown = false
+						}
+						pf("%s", uid)
+					} else {
+						nick := strescape.Nick(ru.Nick())
+						if len(nick) > maxNickW {
+							nick = nick[:maxNickW]
+						}
+						if ignored == "" && ru.IsIgnored() {
+							ignored = " (ignored)"
+						}
+						pf("%*s - %s%s", maxNickW, nick, uid, ignored)
+					}
+				}
+			})
+
+			return nil
+		},
+	},
+}
+
 var ftCommands = []tuicmd{
 	{
 		cmd:           "share",
@@ -3467,6 +3761,18 @@ var commands = []tuicmd{
 		usage: "[sub]",
 		descr: "Group chat commands",
 		sub:   gcCommands,
+		completer: func(args []string, arg string, as *appState) []string {
+			if len(args) == 0 {
+				return cmdCompleter(gcCommands, arg, false)
+			}
+			return nil
+		},
+		handler: subcmdNeededHandler,
+	}, {
+		cmd:   "pt",
+		usage: "[sub]",
+		descr: "Poker commands",
+		sub:   ptCommands,
 		completer: func(args []string, arg string, as *appState) []string {
 			if len(args) == 0 {
 				return cmdCompleter(gcCommands, arg, false)

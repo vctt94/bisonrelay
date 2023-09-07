@@ -1287,6 +1287,495 @@ func ResourcesServiceDefn() ServiceDefn {
 	}
 }
 
+// PokerServiceClient is the client API for PokerService service.
+type PokerServiceClient interface {
+	// PTAct sends an action in a poker Table.
+	PTAct(ctx context.Context, in *TARequest, out *TAResponse) error
+	// TAStream returns a stream that gets Table Actions received by the client.
+	TAStream(ctx context.Context, in *TAStreamRequest) (PokerService_TAStreamClient, error)
+	// AckReceivedTA acks to the server that Tables up to a sequence ID have been
+	// processed.
+	AckReceivedTA(ctx context.Context, in *AckRequest, out *AckResponse) error
+	// PM sends a private message to a user of the client.
+	InviteToTable(ctx context.Context, in *InviteToTableRequest, out *InviteToTableResponse) error
+	// AcceptTableInvite accepts an invitation to join a Table.
+	AcceptTableInvite(ctx context.Context, in *AcceptInviteRequest, out *AcceptInviteResponse) error
+	// KickFromTable kicks an user from a Table. The local user must have admin
+	// privileges in the Table.
+	KickFromTable(ctx context.Context, in *KickFromTableRequest, out *KickFromTableResponse) error
+	// GetTable returns the full definition for a Table.
+	GetTable(ctx context.Context, in *GetTableRequest, out *GetTableResponse) error
+	// List returns a list with all Tables.
+	List(ctx context.Context, in *ListTablesRequest, out *ListTablesResponse) error
+	// ReceivedTableInvites returns a stream that gets sent invitations that remote
+	// users make for the local client to join Tables.
+	ReceivedTableInvites(ctx context.Context, in *ReceivedTableInvitesRequest) (PokerService_ReceivedTableInvitesClient, error)
+	// AckReceivedTableInvites acks received Table invite events.
+	AckReceivedTableInvites(ctx context.Context, in *AckRequest, out *AckResponse) error
+	// MembersAdded returns a stream that gets sent events about members added
+	// to Tables the local client participates in.
+	MembersAdded(ctx context.Context, in *TableMembersAddedRequest) (PokerService_MembersAddedClient, error)
+	// AckMembersAdded acks received members added events.
+	AckMembersAdded(ctx context.Context, in *AckRequest, out *AckResponse) error
+	// MembersRemoved returns a stream that gets sent events about members removed
+	// from Tables the local client participates in.
+	MembersRemoved(ctx context.Context, in *TableMembersRemovedRequest) (PokerService_MembersRemovedClient, error)
+	// AckMembersRemoved acks received members removed events.
+	AckMembersRemoved(ctx context.Context, in *AckRequest, out *AckResponse) error
+	// JoinedTables returns a stream that gets sent events about Tables the local client
+	// has joined.
+	JoinedTables(ctx context.Context, in *JoinedTablesRequest) (PokerService_JoinedTablesClient, error)
+	// AckJoinedTables acks received joined Table events.
+	AckJoinedTables(ctx context.Context, in *AckRequest, out *AckResponse) error
+}
+
+type client_PokerService struct {
+	c    ClientConn
+	defn ServiceDefn
+}
+
+func (c *client_PokerService) PTAct(ctx context.Context, in *TARequest, out *TAResponse) error {
+	const method = "PTAct"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+type PokerService_TAStreamClient interface {
+	Recv(*ReceivedTA) error
+}
+
+func (c *client_PokerService) TAStream(ctx context.Context, in *TAStreamRequest) (PokerService_TAStreamClient, error) {
+	const method = "TAStream"
+	inner, err := c.defn.Methods[method].ClientStreamHandler(c.c, ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return streamerImpl[*ReceivedTA]{c: inner}, nil
+}
+
+func (c *client_PokerService) AckReceivedTA(ctx context.Context, in *AckRequest, out *AckResponse) error {
+	const method = "AckReceivedTA"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+func (c *client_PokerService) InviteToTable(ctx context.Context, in *InviteToTableRequest, out *InviteToTableResponse) error {
+	const method = "InviteToTable"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+func (c *client_PokerService) AcceptTableInvite(ctx context.Context, in *AcceptInviteRequest, out *AcceptInviteResponse) error {
+	const method = "AcceptTableInvite"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+func (c *client_PokerService) KickFromTable(ctx context.Context, in *KickFromTableRequest, out *KickFromTableResponse) error {
+	const method = "KickFromTable"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+func (c *client_PokerService) GetTable(ctx context.Context, in *GetTableRequest, out *GetTableResponse) error {
+	const method = "GetTable"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+func (c *client_PokerService) List(ctx context.Context, in *ListTablesRequest, out *ListTablesResponse) error {
+	const method = "List"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+type PokerService_ReceivedTableInvitesClient interface {
+	Recv(*ReceivedTableInvite) error
+}
+
+func (c *client_PokerService) ReceivedTableInvites(ctx context.Context, in *ReceivedTableInvitesRequest) (PokerService_ReceivedTableInvitesClient, error) {
+	const method = "ReceivedTableInvites"
+	inner, err := c.defn.Methods[method].ClientStreamHandler(c.c, ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return streamerImpl[*ReceivedTableInvite]{c: inner}, nil
+}
+
+func (c *client_PokerService) AckReceivedTableInvites(ctx context.Context, in *AckRequest, out *AckResponse) error {
+	const method = "AckReceivedTableInvites"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+type PokerService_MembersAddedClient interface {
+	Recv(*TableMembersAddedEvent) error
+}
+
+func (c *client_PokerService) MembersAdded(ctx context.Context, in *TableMembersAddedRequest) (PokerService_MembersAddedClient, error) {
+	const method = "MembersAdded"
+	inner, err := c.defn.Methods[method].ClientStreamHandler(c.c, ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return streamerImpl[*TableMembersAddedEvent]{c: inner}, nil
+}
+
+func (c *client_PokerService) AckMembersAdded(ctx context.Context, in *AckRequest, out *AckResponse) error {
+	const method = "AckMembersAdded"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+type PokerService_MembersRemovedClient interface {
+	Recv(*TableMembersRemovedEvent) error
+}
+
+func (c *client_PokerService) MembersRemoved(ctx context.Context, in *TableMembersRemovedRequest) (PokerService_MembersRemovedClient, error) {
+	const method = "MembersRemoved"
+	inner, err := c.defn.Methods[method].ClientStreamHandler(c.c, ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return streamerImpl[*TableMembersRemovedEvent]{c: inner}, nil
+}
+
+func (c *client_PokerService) AckMembersRemoved(ctx context.Context, in *AckRequest, out *AckResponse) error {
+	const method = "AckMembersRemoved"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+type PokerService_JoinedTablesClient interface {
+	Recv(*JoinedTableEvent) error
+}
+
+func (c *client_PokerService) JoinedTables(ctx context.Context, in *JoinedTablesRequest) (PokerService_JoinedTablesClient, error) {
+	const method = "JoinedTables"
+	inner, err := c.defn.Methods[method].ClientStreamHandler(c.c, ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return streamerImpl[*JoinedTableEvent]{c: inner}, nil
+}
+
+func (c *client_PokerService) AckJoinedTables(ctx context.Context, in *AckRequest, out *AckResponse) error {
+	const method = "AckJoinedTables"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+func NewPokerServiceClient(c ClientConn) PokerServiceClient {
+	return &client_PokerService{c: c, defn: PokerServiceDefn()}
+}
+
+// PokerServiceServer is the server API for PokerService service.
+type PokerServiceServer interface {
+	// PTAct sends an action in a poker Table.
+	PTAct(context.Context, *TARequest, *TAResponse) error
+	// TAStream returns a stream that gets Table Actions received by the client.
+	TAStream(context.Context, *TAStreamRequest, PokerService_TAStreamServer) error
+	// AckReceivedTA acks to the server that Tables up to a sequence ID have been
+	// processed.
+	AckReceivedTA(context.Context, *AckRequest, *AckResponse) error
+	// PM sends a private message to a user of the client.
+	InviteToTable(context.Context, *InviteToTableRequest, *InviteToTableResponse) error
+	// AcceptTableInvite accepts an invitation to join a Table.
+	AcceptTableInvite(context.Context, *AcceptInviteRequest, *AcceptInviteResponse) error
+	// KickFromTable kicks an user from a Table. The local user must have admin
+	// privileges in the Table.
+	KickFromTable(context.Context, *KickFromTableRequest, *KickFromTableResponse) error
+	// GetTable returns the full definition for a Table.
+	GetTable(context.Context, *GetTableRequest, *GetTableResponse) error
+	// List returns a list with all Tables.
+	List(context.Context, *ListTablesRequest, *ListTablesResponse) error
+	// ReceivedTableInvites returns a stream that gets sent invitations that remote
+	// users make for the local client to join Tables.
+	ReceivedTableInvites(context.Context, *ReceivedTableInvitesRequest, PokerService_ReceivedTableInvitesServer) error
+	// AckReceivedTableInvites acks received Table invite events.
+	AckReceivedTableInvites(context.Context, *AckRequest, *AckResponse) error
+	// MembersAdded returns a stream that gets sent events about members added
+	// to Tables the local client participates in.
+	MembersAdded(context.Context, *TableMembersAddedRequest, PokerService_MembersAddedServer) error
+	// AckMembersAdded acks received members added events.
+	AckMembersAdded(context.Context, *AckRequest, *AckResponse) error
+	// MembersRemoved returns a stream that gets sent events about members removed
+	// from Tables the local client participates in.
+	MembersRemoved(context.Context, *TableMembersRemovedRequest, PokerService_MembersRemovedServer) error
+	// AckMembersRemoved acks received members removed events.
+	AckMembersRemoved(context.Context, *AckRequest, *AckResponse) error
+	// JoinedTables returns a stream that gets sent events about Tables the local client
+	// has joined.
+	JoinedTables(context.Context, *JoinedTablesRequest, PokerService_JoinedTablesServer) error
+	// AckJoinedTables acks received joined Table events.
+	AckJoinedTables(context.Context, *AckRequest, *AckResponse) error
+}
+
+type PokerService_TAStreamServer interface {
+	Send(m *ReceivedTA) error
+}
+
+type PokerService_ReceivedTableInvitesServer interface {
+	Send(m *ReceivedTableInvite) error
+}
+
+type PokerService_MembersAddedServer interface {
+	Send(m *TableMembersAddedEvent) error
+}
+
+type PokerService_MembersRemovedServer interface {
+	Send(m *TableMembersRemovedEvent) error
+}
+
+type PokerService_JoinedTablesServer interface {
+	Send(m *JoinedTableEvent) error
+}
+
+func PokerServiceDefn() ServiceDefn {
+	return ServiceDefn{
+		Name: "PokerService",
+		Methods: map[string]MethodDefn{
+			"PTAct": {
+				IsStreaming:  false,
+				NewRequest:   func() proto.Message { return new(TARequest) },
+				NewResponse:  func() proto.Message { return new(TAResponse) },
+				RequestDefn:  func() protoreflect.MessageDescriptor { return new(TARequest).ProtoReflect().Descriptor() },
+				ResponseDefn: func() protoreflect.MessageDescriptor { return new(TAResponse).ProtoReflect().Descriptor() },
+				Help:         "PTAct sends an action in a poker Table.",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(PokerServiceServer).PTAct(ctx, request.(*TARequest), response.(*TAResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "PokerService.PTAct"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"TAStream": {
+				IsStreaming:  true,
+				NewRequest:   func() proto.Message { return new(TAStreamRequest) },
+				NewResponse:  func() proto.Message { return new(ReceivedTA) },
+				RequestDefn:  func() protoreflect.MessageDescriptor { return new(TAStreamRequest).ProtoReflect().Descriptor() },
+				ResponseDefn: func() protoreflect.MessageDescriptor { return new(ReceivedTA).ProtoReflect().Descriptor() },
+				Help:         "TAStream returns a stream that gets Table Actions received by the client.",
+				ServerStreamHandler: func(x interface{}, ctx context.Context, request proto.Message, stream ServerStream) error {
+					return x.(PokerServiceServer).TAStream(ctx, request.(*TAStreamRequest), streamerImpl[*ReceivedTA]{s: stream})
+				},
+				ClientStreamHandler: func(conn ClientConn, ctx context.Context, request proto.Message) (ClientStream, error) {
+					method := "PokerService.TAStream"
+					return conn.Stream(ctx, method, request)
+				},
+			},
+			"AckReceivedTA": {
+				IsStreaming:  false,
+				NewRequest:   func() proto.Message { return new(AckRequest) },
+				NewResponse:  func() proto.Message { return new(AckResponse) },
+				RequestDefn:  func() protoreflect.MessageDescriptor { return new(AckRequest).ProtoReflect().Descriptor() },
+				ResponseDefn: func() protoreflect.MessageDescriptor { return new(AckResponse).ProtoReflect().Descriptor() },
+				Help:         "AckReceivedTA acks to the server that Tables up to a sequence ID have been processed.",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(PokerServiceServer).AckReceivedTA(ctx, request.(*AckRequest), response.(*AckResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "PokerService.AckReceivedTA"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"InviteToTable": {
+				IsStreaming:  false,
+				NewRequest:   func() proto.Message { return new(InviteToTableRequest) },
+				NewResponse:  func() proto.Message { return new(InviteToTableResponse) },
+				RequestDefn:  func() protoreflect.MessageDescriptor { return new(InviteToTableRequest).ProtoReflect().Descriptor() },
+				ResponseDefn: func() protoreflect.MessageDescriptor { return new(InviteToTableResponse).ProtoReflect().Descriptor() },
+				Help:         "PM sends a private message to a user of the client.",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(PokerServiceServer).InviteToTable(ctx, request.(*InviteToTableRequest), response.(*InviteToTableResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "PokerService.InviteToTable"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"AcceptTableInvite": {
+				IsStreaming:  false,
+				NewRequest:   func() proto.Message { return new(AcceptInviteRequest) },
+				NewResponse:  func() proto.Message { return new(AcceptInviteResponse) },
+				RequestDefn:  func() protoreflect.MessageDescriptor { return new(AcceptInviteRequest).ProtoReflect().Descriptor() },
+				ResponseDefn: func() protoreflect.MessageDescriptor { return new(AcceptInviteResponse).ProtoReflect().Descriptor() },
+				Help:         "AcceptTableInvite accepts an invitation to join a Table.",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(PokerServiceServer).AcceptTableInvite(ctx, request.(*AcceptInviteRequest), response.(*AcceptInviteResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "PokerService.AcceptTableInvite"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"KickFromTable": {
+				IsStreaming:  false,
+				NewRequest:   func() proto.Message { return new(KickFromTableRequest) },
+				NewResponse:  func() proto.Message { return new(KickFromTableResponse) },
+				RequestDefn:  func() protoreflect.MessageDescriptor { return new(KickFromTableRequest).ProtoReflect().Descriptor() },
+				ResponseDefn: func() protoreflect.MessageDescriptor { return new(KickFromTableResponse).ProtoReflect().Descriptor() },
+				Help:         "KickFromTable kicks an user from a Table. The local user must have admin privileges in the Table.",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(PokerServiceServer).KickFromTable(ctx, request.(*KickFromTableRequest), response.(*KickFromTableResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "PokerService.KickFromTable"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"GetTable": {
+				IsStreaming:  false,
+				NewRequest:   func() proto.Message { return new(GetTableRequest) },
+				NewResponse:  func() proto.Message { return new(GetTableResponse) },
+				RequestDefn:  func() protoreflect.MessageDescriptor { return new(GetTableRequest).ProtoReflect().Descriptor() },
+				ResponseDefn: func() protoreflect.MessageDescriptor { return new(GetTableResponse).ProtoReflect().Descriptor() },
+				Help:         "GetTable returns the full definition for a Table.",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(PokerServiceServer).GetTable(ctx, request.(*GetTableRequest), response.(*GetTableResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "PokerService.GetTable"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"List": {
+				IsStreaming:  false,
+				NewRequest:   func() proto.Message { return new(ListTablesRequest) },
+				NewResponse:  func() proto.Message { return new(ListTablesResponse) },
+				RequestDefn:  func() protoreflect.MessageDescriptor { return new(ListTablesRequest).ProtoReflect().Descriptor() },
+				ResponseDefn: func() protoreflect.MessageDescriptor { return new(ListTablesResponse).ProtoReflect().Descriptor() },
+				Help:         "List returns a list with all Tables.",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(PokerServiceServer).List(ctx, request.(*ListTablesRequest), response.(*ListTablesResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "PokerService.List"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"ReceivedTableInvites": {
+				IsStreaming: true,
+				NewRequest:  func() proto.Message { return new(ReceivedTableInvitesRequest) },
+				NewResponse: func() proto.Message { return new(ReceivedTableInvite) },
+				RequestDefn: func() protoreflect.MessageDescriptor {
+					return new(ReceivedTableInvitesRequest).ProtoReflect().Descriptor()
+				},
+				ResponseDefn: func() protoreflect.MessageDescriptor { return new(ReceivedTableInvite).ProtoReflect().Descriptor() },
+				Help:         "ReceivedTableInvites returns a stream that gets sent invitations that remote users make for the local client to join Tables.",
+				ServerStreamHandler: func(x interface{}, ctx context.Context, request proto.Message, stream ServerStream) error {
+					return x.(PokerServiceServer).ReceivedTableInvites(ctx, request.(*ReceivedTableInvitesRequest), streamerImpl[*ReceivedTableInvite]{s: stream})
+				},
+				ClientStreamHandler: func(conn ClientConn, ctx context.Context, request proto.Message) (ClientStream, error) {
+					method := "PokerService.ReceivedTableInvites"
+					return conn.Stream(ctx, method, request)
+				},
+			},
+			"AckReceivedTableInvites": {
+				IsStreaming:  false,
+				NewRequest:   func() proto.Message { return new(AckRequest) },
+				NewResponse:  func() proto.Message { return new(AckResponse) },
+				RequestDefn:  func() protoreflect.MessageDescriptor { return new(AckRequest).ProtoReflect().Descriptor() },
+				ResponseDefn: func() protoreflect.MessageDescriptor { return new(AckResponse).ProtoReflect().Descriptor() },
+				Help:         "AckReceivedTableInvites acks received Table invite events.",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(PokerServiceServer).AckReceivedTableInvites(ctx, request.(*AckRequest), response.(*AckResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "PokerService.AckReceivedTableInvites"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"MembersAdded": {
+				IsStreaming: true,
+				NewRequest:  func() proto.Message { return new(TableMembersAddedRequest) },
+				NewResponse: func() proto.Message { return new(TableMembersAddedEvent) },
+				RequestDefn: func() protoreflect.MessageDescriptor {
+					return new(TableMembersAddedRequest).ProtoReflect().Descriptor()
+				},
+				ResponseDefn: func() protoreflect.MessageDescriptor { return new(TableMembersAddedEvent).ProtoReflect().Descriptor() },
+				Help:         "MembersAdded returns a stream that gets sent events about members added to Tables the local client participates in.",
+				ServerStreamHandler: func(x interface{}, ctx context.Context, request proto.Message, stream ServerStream) error {
+					return x.(PokerServiceServer).MembersAdded(ctx, request.(*TableMembersAddedRequest), streamerImpl[*TableMembersAddedEvent]{s: stream})
+				},
+				ClientStreamHandler: func(conn ClientConn, ctx context.Context, request proto.Message) (ClientStream, error) {
+					method := "PokerService.MembersAdded"
+					return conn.Stream(ctx, method, request)
+				},
+			},
+			"AckMembersAdded": {
+				IsStreaming:  false,
+				NewRequest:   func() proto.Message { return new(AckRequest) },
+				NewResponse:  func() proto.Message { return new(AckResponse) },
+				RequestDefn:  func() protoreflect.MessageDescriptor { return new(AckRequest).ProtoReflect().Descriptor() },
+				ResponseDefn: func() protoreflect.MessageDescriptor { return new(AckResponse).ProtoReflect().Descriptor() },
+				Help:         "AckMembersAdded acks received members added events.",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(PokerServiceServer).AckMembersAdded(ctx, request.(*AckRequest), response.(*AckResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "PokerService.AckMembersAdded"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"MembersRemoved": {
+				IsStreaming: true,
+				NewRequest:  func() proto.Message { return new(TableMembersRemovedRequest) },
+				NewResponse: func() proto.Message { return new(TableMembersRemovedEvent) },
+				RequestDefn: func() protoreflect.MessageDescriptor {
+					return new(TableMembersRemovedRequest).ProtoReflect().Descriptor()
+				},
+				ResponseDefn: func() protoreflect.MessageDescriptor {
+					return new(TableMembersRemovedEvent).ProtoReflect().Descriptor()
+				},
+				Help: "MembersRemoved returns a stream that gets sent events about members removed from Tables the local client participates in.",
+				ServerStreamHandler: func(x interface{}, ctx context.Context, request proto.Message, stream ServerStream) error {
+					return x.(PokerServiceServer).MembersRemoved(ctx, request.(*TableMembersRemovedRequest), streamerImpl[*TableMembersRemovedEvent]{s: stream})
+				},
+				ClientStreamHandler: func(conn ClientConn, ctx context.Context, request proto.Message) (ClientStream, error) {
+					method := "PokerService.MembersRemoved"
+					return conn.Stream(ctx, method, request)
+				},
+			},
+			"AckMembersRemoved": {
+				IsStreaming:  false,
+				NewRequest:   func() proto.Message { return new(AckRequest) },
+				NewResponse:  func() proto.Message { return new(AckResponse) },
+				RequestDefn:  func() protoreflect.MessageDescriptor { return new(AckRequest).ProtoReflect().Descriptor() },
+				ResponseDefn: func() protoreflect.MessageDescriptor { return new(AckResponse).ProtoReflect().Descriptor() },
+				Help:         "AckMembersRemoved acks received members removed events.",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(PokerServiceServer).AckMembersRemoved(ctx, request.(*AckRequest), response.(*AckResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "PokerService.AckMembersRemoved"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"JoinedTables": {
+				IsStreaming:  true,
+				NewRequest:   func() proto.Message { return new(JoinedTablesRequest) },
+				NewResponse:  func() proto.Message { return new(JoinedTableEvent) },
+				RequestDefn:  func() protoreflect.MessageDescriptor { return new(JoinedTablesRequest).ProtoReflect().Descriptor() },
+				ResponseDefn: func() protoreflect.MessageDescriptor { return new(JoinedTableEvent).ProtoReflect().Descriptor() },
+				Help:         "JoinedTables returns a stream that gets sent events about Tables the local client has joined.",
+				ServerStreamHandler: func(x interface{}, ctx context.Context, request proto.Message, stream ServerStream) error {
+					return x.(PokerServiceServer).JoinedTables(ctx, request.(*JoinedTablesRequest), streamerImpl[*JoinedTableEvent]{s: stream})
+				},
+				ClientStreamHandler: func(conn ClientConn, ctx context.Context, request proto.Message) (ClientStream, error) {
+					method := "PokerService.JoinedTables"
+					return conn.Stream(ctx, method, request)
+				},
+			},
+			"AckJoinedTables": {
+				IsStreaming:  false,
+				NewRequest:   func() proto.Message { return new(AckRequest) },
+				NewResponse:  func() proto.Message { return new(AckResponse) },
+				RequestDefn:  func() protoreflect.MessageDescriptor { return new(AckRequest).ProtoReflect().Descriptor() },
+				ResponseDefn: func() protoreflect.MessageDescriptor { return new(AckResponse).ProtoReflect().Descriptor() },
+				Help:         "AckJoinedTables acks received joined Table events.",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(PokerServiceServer).AckJoinedTables(ctx, request.(*AckRequest), response.(*AckResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "PokerService.AckJoinedTables"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+		},
+	}
+}
+
 var help_messages = map[string]map[string]string{
 	"VersionRequest": {
 		"@": "",
@@ -1584,6 +2073,14 @@ var help_messages = map[string]map[string]string{
 		"message": "message is the private message payload.",
 		"mode":    "mode is the message mode.",
 	},
+	"RMPokerTableAction": {
+		"@":              "RMPokerTableAction is the network-level routed poker message.",
+		"id":             "id is the group chat id where the message was sent.",
+		"generation":     "generation is the internal generation of the group chat metadata when the sender sent this message.",
+		"action":         "action is the textual content.",
+		"mode":           "mode is the mode of the message.",
+		"current_player": "the current player with the action",
+	},
 	"RMGroupMessage": {
 		"@":          "RMGroupMessage is the network-level routed group message.",
 		"id":         "id is the group chat id where the message was sent.",
@@ -1665,5 +2162,104 @@ var help_messages = map[string]map[string]string{
 		"data":   "data is the raw response data.",
 		"index":  "index is used in chunked/multipart responses.",
 		"count":  "count is the total number of chunks in multipart responses.",
+	},
+	"TARequest": {
+		"@":        "",
+		"table_id": "",
+		"action":   "",
+	},
+	"TAResponse": {
+		"@":      "",
+		"status": "",
+	},
+	"TAStreamRequest": {
+		"@":            "",
+		"unacked_from": "unacked_from specifies to the server the sequence_id of the last processed GCM. GCMs received by the server that have a higher sequence_id will be streamed back to the client.",
+	},
+	"ReceivedTA": {
+		"@":            "",
+		"uid":          "uid is the source user ID.",
+		"nick":         "nick is the source user nick/alias.",
+		"table_alias":  "gc_alias is the local alias of the GC where the message was sent.",
+		"msg":          "msg is the received message.",
+		"timestamp_ms": "timestamp_ms is the server timestamp of the message with millisecond precision.",
+		"sequence_id":  "sequence_id is an opaque sequential ID.",
+	},
+	"InviteToTableRequest": {
+		"@":        "",
+		"table_id": "",
+		"user_id":  "",
+	},
+	"InviteToTableResponse": {
+		"@":      "",
+		"status": "",
+	},
+	"AcceptTableInviteRequest": {
+		"@":         "",
+		"invite_id": "",
+	},
+	"AcceptTableInviteResponse": {
+		"@":      "",
+		"status": "",
+	},
+	"KickFromTableRequest": {
+		"@":        "",
+		"table_id": "",
+		"user_id":  "",
+	},
+	"KickFromTableResponse": {
+		"@":      "",
+		"status": "",
+	},
+	"GetTableRequest": {
+		"@":        "",
+		"table_id": "",
+	},
+	"GetTableResponse": {
+		"@":        "",
+		"table_id": "",
+	},
+	"ListTablesRequest": {
+		"@":    "",
+		"page": "",
+	},
+	"ListTablesResponse": {
+		"@":         "",
+		"table_ids": "",
+	},
+	"ReceivedTableInvitesRequest": {
+		"@":       "",
+		"user_id": "",
+	},
+	"ReceivedTableInvite": {
+		"@":          "",
+		"table_id":   "",
+		"inviter_id": "",
+	},
+	"TableMembersAddedRequest": {
+		"@":        "",
+		"table_id": "",
+	},
+	"TableMembersAddedEvent": {
+		"@":                "",
+		"table_id":         "",
+		"added_member_ids": "",
+	},
+	"TableMembersRemovedRequest": {
+		"@":        "",
+		"table_id": "",
+	},
+	"TableMembersRemovedEvent": {
+		"@":                  "",
+		"table_id":           "",
+		"removed_member_ids": "",
+	},
+	"JoinedTablesRequest": {
+		"@":       "",
+		"user_id": "",
+	},
+	"JoinedTableEvent": {
+		"@":        "",
+		"table_id": "",
 	},
 }

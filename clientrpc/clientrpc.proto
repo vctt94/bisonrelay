@@ -724,6 +724,21 @@ message RMPrivateMessage {
   MessageMode mode = 2;
 }
 
+/* RMPokerTableAction is the network-level routed poker message. */
+message RMPokerTableAction {
+  /* id is the group chat id where the message was sent. */
+  bytes id = 1;
+  /* generation is the internal generation of the group chat metadata when the
+     sender sent this message. */
+  uint64 generation = 2;
+  /* action is the textual content. */
+  string action = 3;
+  /* mode is the mode of the message. */
+  MessageMode mode = 4;
+  // the current player with the action
+  bytes current_player = 5;
+}
+
 
 /* RMGroupMessage is the network-level routed group message. */
 message RMGroupMessage {
@@ -871,4 +886,176 @@ message RMFetchResourceReply {
   uint32 index = 5;
   /* count is the total number of chunks in multipart responses. */
   uint32 count  = 6;
+}
+
+// Messages for PokerService
+
+message TARequest {
+  string table_id = 1;
+  string action = 2;
+  // Add more fields here as needed
+}
+
+message TAResponse {
+  string status = 1;
+  // Add more fields here as needed
+}
+
+message TAStreamRequest {
+  /* unacked_from specifies to the server the sequence_id of the last processed
+    GCM. GCMs received by the server that have a higher sequence_id will be
+    streamed back to the client. */
+    uint64 unacked_from = 1;
+}
+
+message ReceivedTA {
+  /* uid is the source user ID. */
+  bytes uid = 1;
+  /* nick is the source user nick/alias. */
+  string nick = 2;
+  /* gc_alias is the local alias of the GC where the message was sent. */
+  string table_alias = 3;
+  /* msg is the received message. */
+  RMPokerTableAction msg = 4;
+  /* timestamp_ms is the server timestamp of the message with millisecond precision. */
+  int64 timestamp_ms = 5;
+  /* sequence_id is an opaque sequential ID. */
+  uint64 sequence_id = 6;
+}
+
+message InviteToTableRequest {
+  string table_id = 1;
+  string user_id = 2;
+}
+
+message InviteToTableResponse {
+  string status = 1;
+}
+
+message AcceptTableInviteRequest {
+  string invite_id = 1;
+}
+
+message AcceptTableInviteResponse {
+  string status = 1;
+}
+
+message KickFromTableRequest {
+  string table_id = 1;
+  string user_id = 2;
+}
+
+message KickFromTableResponse {
+  string status = 1;
+}
+
+message GetTableRequest {
+  string table_id = 1;
+}
+
+message GetTableResponse {
+  string table_id = 1;
+  // Add more fields such as table details
+}
+
+message ListTablesRequest {
+  int32 page = 1;
+}
+
+message ListTablesResponse {
+  repeated string table_ids = 1;
+}
+
+message ReceivedTableInvitesRequest {
+  string user_id = 1;
+}
+
+message ReceivedTableInvite {
+  string table_id = 1;
+  string inviter_id = 2;
+}
+
+message TableMembersAddedRequest {
+  string table_id = 1;
+}
+
+message TableMembersAddedEvent {
+  string table_id = 1;
+  repeated string added_member_ids = 2;
+}
+
+message TableMembersRemovedRequest {
+  string table_id = 1;
+}
+
+message TableMembersRemovedEvent {
+  string table_id = 1;
+  repeated string removed_member_ids = 2;
+}
+
+message JoinedTablesRequest {
+  string user_id = 1;
+}
+
+message JoinedTableEvent {
+  string table_id = 1;
+}
+
+// end messages for poker service
+
+/* ChatService is the service for interacting with a BR client chat messages. */
+service PokerService {
+  /* PTAct sends an action in a poker Table. */
+  rpc PTAct(TARequest) returns (TAResponse);
+
+  /* TAStream returns a stream that gets Table Actions received by the client. */
+  rpc TAStream(TAStreamRequest) returns (stream ReceivedTA);
+
+  /* AckReceivedTA acks to the server that Tables up to a sequence ID have been
+     processed. */
+  rpc AckReceivedTA(AckRequest) returns (AckResponse);
+
+  /* PM sends a private message to a user of the client. */
+  rpc InviteToTable(InviteToTableRequest) returns (InviteToTableResponse);
+
+  /* AcceptTableInvite accepts an invitation to join a Table. */
+  rpc AcceptTableInvite(AcceptInviteRequest) returns (AcceptInviteResponse);
+
+  /* KickFromTable kicks an user from a Table. The local user must have admin
+  privileges in the Table. */
+  rpc KickFromTable(KickFromTableRequest) returns (KickFromTableResponse);
+
+  /* GetTable returns the full definition for a Table. */
+  rpc GetTable(GetTableRequest) returns (GetTableResponse);
+
+  /* List returns a list with all Tables. */
+  rpc List(ListTablesRequest) returns (ListTablesResponse);
+
+  /* ReceivedTableInvites returns a stream that gets sent invitations that remote
+    users make for the local client to join Tables. */
+  rpc ReceivedTableInvites(ReceivedTableInvitesRequest) returns (stream ReceivedTableInvite);
+
+  /* AckReceivedTableInvites acks received Table invite events. */
+  rpc AckReceivedTableInvites(AckRequest) returns (AckResponse);
+
+  /* MembersAdded returns a stream that gets sent events about members added
+    to Tables the local client participates in. */
+  rpc MembersAdded(TableMembersAddedRequest) returns (stream TableMembersAddedEvent);
+
+  /* AckMembersAdded acks received members added events. */
+  rpc AckMembersAdded(AckRequest) returns (AckResponse);
+
+  /* MembersRemoved returns a stream that gets sent events about members removed
+    from Tables the local client participates in. */
+  rpc MembersRemoved(TableMembersRemovedRequest) returns (stream TableMembersRemovedEvent);
+
+  /* AckMembersRemoved acks received members removed events. */
+  rpc AckMembersRemoved(AckRequest) returns (AckResponse);
+
+  /* JoinedTables returns a stream that gets sent events about Tables the local client
+    has joined. */
+  rpc JoinedTables(JoinedTablesRequest) returns (stream JoinedTableEvent);
+
+  /* AckJoinedTables acks received joined Table events. */
+  rpc AckJoinedTables(AckRequest) returns (AckResponse);
 }

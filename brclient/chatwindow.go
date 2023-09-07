@@ -427,8 +427,10 @@ type chatMsg struct {
 
 type chatWindow struct {
 	sync.Mutex
-	uid   clientintf.UserID
-	isGC  bool
+	uid  clientintf.UserID
+	isGC bool
+	// is poker table
+	isPT  bool
 	msgs  []*chatMsg
 	alias string
 	me    string // nick of the local user

@@ -162,6 +162,10 @@ type appState struct {
 	gcInvitesMtx sync.Mutex
 	gcInvites    map[string]uint64
 
+	// ptInvites tracks received gc invitations (gc name => invite id).
+	ptInvitesMtx sync.Mutex
+	ptInvites    map[string]uint64
+
 	// Reply chans for notifications that require confirmation.
 	clientIDChan      chan getClientIDReply
 	lnOpenChannelChan chan msgLNOpenChannelReply
@@ -546,6 +550,10 @@ loop:
 				cw = as.findOrNewGCWindow(msg.ID)
 				beepNick = cw.alias
 				rawMsg = msg.Message
+			case rpc.RMPokerTableAction:
+				cw = as.findOrNewPTWindow(msg.ID)
+				beepNick = cw.alias
+				rawMsg = msg.Action
 			default:
 				panic("unimplemented")
 			}
@@ -1107,6 +1115,54 @@ func (as *appState) findOrNewGCWindow(gcID zkidentity.ShortID) *chatWindow {
 	return cw
 }
 
+// findOrNewGCWindow finds the existing chat window for the given pt or creates
+// a new one with the given alias.
+func (as *appState) findOrNewPTWindow(gcID zkidentity.ShortID) *chatWindow {
+	gcName, err := as.c.GetGCAlias(gcID)
+	if err != nil {
+		gcName = gcID.String()
+	}
+
+	as.chatWindowsMtx.Lock()
+	for _, cw := range as.chatWindows {
+		if cw.isGC && cw.gc == gcID {
+			as.chatWindowsMtx.Unlock()
+			return cw
+		}
+	}
+
+	cw := &chatWindow{
+		alias: gcName,
+		isPT:  true,
+		gc:    gcID,
+		me:    as.c.LocalNick(),
+	}
+	cw.newInternalMsg("First message received")
+	as.chatWindows = append(as.chatWindows, cw)
+	as.updatedCW[len(as.chatWindows)-1] = false
+	as.chatWindowsMtx.Unlock()
+
+	chatHistory, initTime, err := as.c.ReadUserHistoryMessages(gcID, gcName, 500, 0)
+	if err != nil {
+		cw.newInternalMsg("Unable to read history messages")
+	}
+	cw.initTime = initTime
+	for i, chatLog := range chatHistory {
+		var empty *zkidentity.ShortID
+		if i == 0 ||
+			(i > 0 &&
+				time.Unix(chatLog.Timestamp, 0).Format("2006-01-02") !=
+					time.Unix(chatHistory[i-1].Timestamp, 0).Format("2006-01-02")) {
+			cw.newInternalMsg(fmt.Sprintf("Day changed to %s", time.Unix(chatLog.Timestamp, 0).Format("2006-01-02")))
+		}
+		cw.newHistoryMsg(chatLog.From, chatLog.Message, empty, time.Unix(chatLog.Timestamp, 0), chatLog.From == cw.me)
+	}
+
+	as.footerInvalidate()
+	as.diagMsg("Started Poker Table %s", gcName)
+	return cw
+}
+
 // findOrNewChatWindow finds the existing chat window for the given user or
 // creates a new one with the given alias.
 func (as *appState) findOrNewChatWindow(id clientintf.UserID, alias string) *chatWindow {
@@ -1385,6 +1441,39 @@ func (as *appState) pm(cw *chatWindow, msg string) {
 	}
 }
 
+// act sends the given action in the specified window. Blocks until the
+// messsage is sent to the server.
+func (as *appState) act(cw *chatWindow, msg string) {
+	m := cw.newUnsentPM(msg)
+	as.repaintIfActive(cw)
+
+	var err error
+	progrChan := make(chan client.SendProgress)
+
+	err = as.c.PTAct(cw.gc, msg, rpc.MessageModeNormal, progrChan)
+
+	if err != nil {
+		as.cwHelpMsg("Unable to send act to PT %q: %v",
+			cw.alias, err)
+	} else if progrChan == nil {
+		cw.setMsgSent(m)
+		as.sendMsg(repaintActiveChat{})
+	} else {
+		for progr := range progrChan {
+			if progr.Err != nil {
+				as.diagMsg("Error while sending PT act: %v", progr.Err)
+			}
+			as.log.Debugf("Progress on PT act %d/%d",
+				progr.Sent, progr.Total)
+			if progr.Sent == progr.Total {
+				cw.setMsgSent(m)
+				as.sendMsg(repaintActiveChat{})
+				break
+			}
+		}
+	}
+}
+
 // payTip sends a tip to the user of the given window. This blocks until the
 // tip has been paid.
 func (as *appState) payTip(cw *chatWindow, dcrAmount float64) {
@@ -1448,6 +1537,20 @@ func (as *appState) inviteToGC(cw *chatWindow, nick string, uid clientintf.UserI
 		as.repaintIfActive(cw)
 	} else {
 		as.diagMsg("Unable to invite %q to gc %q: %v", nick, cw.gc.String(), err)
+	}
+}
+
+// inviteToPT invites the given user to the PT in the specified window. Blocks
+// until the invite message is sent to the server.
+func (as *appState) inviteToPT(cw *chatWindow, nick string, uid clientintf.UserID) {
+	m := cw.newInternalMsg(fmt.Sprintf("Invited user %q to pt %s", nick, cw.alias))
+	as.repaintIfActive(cw)
+	err := as.c.InviteToPokerTable(cw.gc, uid)
+	if err == nil {
+		cw.setMsgSent(m)
+		as.repaintIfActive(cw)
+	} else {
+		as.diagMsg("Unable to invite %q to pt %q: %v", nick, cw.gc.String(), err)
 	}
 }
 
@@ -2664,6 +2767,21 @@ func newAppState(sendMsg func(tea.Msg), lndLogLines *sloglinesbuffer.Buffer,
 		}()
 	}))
 
+	// onPTA needs to be sync, otherwise during startup when fetching
+	// multiple initial messages we might inadvertedly reorder them.
+	ntfns.RegisterSync(client.OnPTANtfn(func(user *client.RemoteUser, msg rpc.RMPokerTableAction, ts time.Time) {
+		inmsg := inboundRemoteMsg{user: user, rm: msg, ts: ts, recvts: time.Now()}
+		as.inboundMsgsMtx.Lock()
+		as.inboundMsgs.PushBack(inmsg)
+		as.inboundMsgsMtx.Unlock()
+		go func() {
+			select {
+			case as.inboundMsgsChan <- struct{}{}:
+			case <-as.ctx.Done():
+			}
+		}()
+	}))
+
 	ntfns.Register(client.OnPostRcvdNtfn(func(user *client.RemoteUser,
 		summ clientdb.PostSummary, pm rpc.PostMetadata) {
 
@@ -2852,6 +2970,19 @@ func newAppState(sendMsg func(tea.Msg), lndLogLines *sloglinesbuffer.Buffer,
 			gcName, invite.ID.String(), user.Nick(), gcName)
 		cw := as.findOrNewChatWindow(user.ID(), user.Nick())
 		cw.newInternalMsg(fmt.Sprintf("%q has invited you to GC %q (%v).  Type /gc join %s to join",
+			user.Nick(), gcName, invite.ID.String(), gcName))
+		as.repaintIfActive(cw)
+	}))
+
+	ntfns.Register(client.OnInvitedToPTNtfn(func(user *client.RemoteUser, iid uint64, invite rpc.RMPokerTableInvite) {
+		gcName := strescape.Nick(invite.Name)
+		as.ptInvitesMtx.Lock()
+		as.ptInvites[gcName] = iid
+		as.ptInvitesMtx.Unlock()
+		as.diagMsg("Invited to PT %q (%v) by %q. Type /pt join %s to join.",
+			gcName, invite.ID.String(), user.Nick(), gcName)
+		cw := as.findOrNewChatWindow(user.ID(), user.Nick())
+		cw.newInternalMsg(fmt.Sprintf("%q has invited you to PT %q (%v).  Type /pt join %s to join",
 			user.Nick(), gcName, invite.ID.String(), gcName))
 		as.repaintIfActive(cw)
 	}))
@@ -3599,6 +3730,20 @@ func newAppState(sendMsg func(tea.Msg), lndLogLines *sloglinesbuffer.Buffer,
 		if err != nil {
 			return nil, err
 		}
+
+		pokerRPCServerCfg := rpcserver.PokerServerCfg{
+			Log:               logBknd.logger("RPCS"),
+			Client:            c,
+			RootReplayMsgLogs: filepath.Join(args.DBRoot, "replaymsglog"),
+			OnPTA: func(ctx context.Context, gcid client.GCID, gcm *types.TARequest) error {
+				fmt.Printf("aqui no onpta")
+				cw := as.findOrNewPTWindow(gcid)
+				cw.newInternalMsg("Poker Table Action: " + gcm.Action)
+				as.repaintIfActive(cw)
+				return nil
+			},
+		}
+		err = rpcServer.InitPokerService(pokerRPCServerCfg)
 	}
 
 	// Bind the selected upstream resource provider.
@@ -3686,6 +3831,7 @@ func newAppState(sendMsg func(tea.Msg), lndLogLines *sloglinesbuffer.Buffer,
 		rates:       r,
 
 		gcInvites: make(map[string]uint64),
+		ptInvites: make(map[string]uint64),
 		network:   args.Network,
 		isRestore: isRestore,
 		rpcServer: rpcServer,

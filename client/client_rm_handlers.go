@@ -156,6 +156,18 @@ func (c *Client) innerHandleUserRM(ru *RemoteUser, h *rpc.RMHeader,
 	case rpc.RMGroupJoin:
 		return c.handleGCJoin(ru, p)
 
+	case rpc.RMPokerTableInvite:
+		return c.handlePTInvite(ru, p)
+
+	case rpc.RMPokerTableJoin:
+		return c.handlePTJoin(ru, p)
+
+	case rpc.RMPokerTableAction:
+		return c.handlePTMessage(ru, p, ts)
+
+	case rpc.RMPokerTableList:
+		return c.handlePTList(ru, p)
+
 	case rpc.RMGroupList:
 		return c.handleGCList(ru, p)
 

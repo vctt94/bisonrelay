@@ -34,6 +34,7 @@ const (
 	inboundDir          = "inbound"
 	identityFilename    = "publicidentity.json"
 	groupchatDir        = "groupchat"
+	pokertableDir       = "pokertable"
 	invitesDir          = "invites"
 	contentDir          = "content"
 	postsDir            = "posts"
@@ -58,6 +59,7 @@ const (
 	reqResourcesDir     = "reqresources"
 	recvAddrForUserFile = "onchainrecvaddr.json"
 	cachedGCMsDir       = "cachedgcms"
+	cachedPTMsDir       = "cacheptms"
 	unkxdUsersDir       = "unkxd"
 	filtersDir          = "contentfilters"
 
@@ -620,6 +622,14 @@ func (db *DB) LogPM(tx ReadWriteTx, uid UserID, internal bool, from, msg string,
 
 	nick := entry.ID.Nick
 	logFname := fmt.Sprintf("%s.%s.log", escapeNickForFname(nick), uid)
+	return db.logMsg(logFname, internal, from, msg, ts)
+}
+
+// LogPTAct logs an action sent in the given PT.
+func (db *DB) LogPTAct(tx ReadWriteTx, gcName string, gcID zkidentity.ShortID,
+	internal bool, from, msg string, ts time.Time) error {
+
+	logFname := fmt.Sprintf("pokertable.%s.%s.log", escapeNickForFname(gcName), gcID)
 	return db.logMsg(logFname, internal, from, msg, ts)
 }
 

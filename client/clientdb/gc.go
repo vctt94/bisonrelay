@@ -19,6 +19,7 @@ import (
 
 const (
 	gcAliasesFile  = "gcaliases.json"
+	ptAliasesFile  = "ptaliases.json"
 	invitesTable   = "invites"
 	gcBlockListExt = ".blocklist"
 )
@@ -467,6 +468,12 @@ func (db *DB) GetGCBlockList(tx ReadTx, gcid zkidentity.ShortID) (GCBlockList, e
 	}
 	return entries, err
 
+}
+
+// CacheReceivedGCM stores a cached received PT message.
+func (db *DB) CacheReceivedPTA(tx ReadWriteTx, rgcm clientintf.ReceivedPTAct) error {
+	filename := filepath.Join(db.root, cachedPTMsDir, rgcm.MsgID.String())
+	return db.saveJsonFile(filename, rgcm)
 }
 
 // CacheReceivedGCM stores a cached received GC message.

@@ -35,6 +35,7 @@ const (
 
 type UserID = clientintf.UserID
 type GCID = zkidentity.ShortID
+type PTID = zkidentity.ShortID
 
 // RemoteIDFromStr converts the given string to a UserID. Returns an empty
 // uid if the string is not a valid UserID.
