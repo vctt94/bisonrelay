@@ -1317,6 +1317,78 @@ var ptCommands = []tuicmd{
 		},
 	},
 	{
+		cmd:     "show",
+		aliases: []string{"s"},
+		usage:   "<pt name>",
+		descr:   "show current poker game",
+		rawHandler: func(rawCmd string, args []string, as *appState) error {
+			if len(args) < 1 {
+				return usageError{"pt name cannot be empty"}
+			}
+
+			gcname := args[0]
+			gcID, err := as.c.PTIDByName(gcname)
+			if err != nil {
+				return err
+			}
+
+			if _, err := as.c.GetPT(gcID); err != nil {
+				return err
+			}
+			cw := as.findOrNewPTWindow(gcID)
+			fmt.Printf("cw: %+v\n\n", cw.pokerGame)
+			// as.cwHelpMsgs(func(pf printf) {
+			// 	pf("")
+			// 	pf("Poker game:")
+			// 	for _, card := range cw.pokerGame.Deck {
+
+			// 		pf("%s - %s members",
+			// 			card.Value,
+			// 			card.Suit)
+			// 	}
+			// })
+			return nil
+		},
+		completer: func(args []string, arg string, as *appState) []string {
+			if len(args) == 0 {
+				return gcCompleter(arg, as)
+			}
+			return nil
+		},
+	},
+	{
+		cmd:     "start",
+		aliases: []string{"s"},
+		usage:   "<pt name>",
+		descr:   "starts a new game at a poker table",
+		rawHandler: func(rawCmd string, args []string, as *appState) error {
+			if len(args) < 1 {
+				return usageError{"pt name cannot be empty"}
+			}
+
+			gcname := args[0]
+			gcID, err := as.c.PTIDByName(gcname)
+			if err != nil {
+				return err
+			}
+
+			// _, msg := popNArgs(rawCmd, 3) // cmd + subcmd + gcname
+
+			if _, err := as.c.GetPT(gcID); err != nil {
+				return err
+			}
+			cw := as.findOrNewPTWindow(gcID)
+			go as.start(cw)
+			return nil
+		},
+		completer: func(args []string, arg string, as *appState) []string {
+			if len(args) == 0 {
+				return gcCompleter(arg, as)
+			}
+			return nil
+		},
+	},
+	{
 		cmd:   "join",
 		usage: "<pt name>",
 		descr: "Join the given PT we were invited to",

@@ -317,6 +317,13 @@ type OnPTANtfn func(*RemoteUser, rpc.RMPokerTableAction, time.Time)
 
 func (_ OnPTANtfn) typ() string { return onPTANtfnType }
 
+const onPTSNtfnType = "onPTS"
+
+// OnPMNtfn is the handler for received private messages.
+type OnPTSNtfn func(*RemoteUser, rpc.RMPokerTableStart, time.Time)
+
+func (_ OnPTSNtfn) typ() string { return onPTSNtfnType }
+
 // The following is used only in tests.
 
 const onTestNtfnType = "testNtfnType"
@@ -651,6 +658,11 @@ func (nmgr *NotificationManager) notifyOnPTA(user *RemoteUser, gcm rpc.RMPokerTa
 		visit(func(h OnPTANtfn) { h(user, gcm, ts) })
 }
 
+func (nmgr *NotificationManager) notifyOnPTS(user *RemoteUser, gcm rpc.RMPokerTableStart, ts time.Time) {
+	nmgr.handlers[onPTSNtfnType].(*handlersFor[OnPTSNtfn]).
+		visit(func(h OnPTSNtfn) { h(user, gcm, ts) })
+}
+
 func NewNotificationManager() *NotificationManager {
 	return &NotificationManager{
 		handlers: map[string]handlersRegistry{
@@ -682,6 +694,7 @@ func NewNotificationManager() *NotificationManager {
 			onPTInviteAcceptedNtfnType: &handlersFor[OnPTInviteAcceptedNtfn]{},
 			onJoinedPTNtfnType:         &handlersFor[OnJoinedPTNtfn]{},
 			onPTANtfnType:              &handlersFor[OnPTANtfn]{},
+			onPTSNtfnType:              &handlersFor[OnPTSNtfn]{},
 
 			onKXSearchCompletedNtfnType:       &handlersFor[OnKXSearchCompleted]{},
 			onInvoiceGenFailedNtfnType:        &handlersFor[OnInvoiceGenFailedNtfn]{},

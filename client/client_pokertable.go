@@ -660,6 +660,69 @@ func (c *Client) PTAct(gcID zkidentity.ShortID, msg string, mode rpc.MessageMode
 	return c.sendToPTMembers(gcID, members, "act", p, progressChan)
 }
 
+// PTStart sends an action to the given PT. If progressChan is not nil,
+// events are sent to it as the sending process progresses. Writes to
+// progressChan are serial, so it's important that it not block indefinitely.
+func (c *Client) PTStart(gcID zkidentity.ShortID, p rpc.RMPokerTableStart,
+	progressChan chan SendProgress) error {
+
+	var gc rpc.RMPokerTableList
+	err := c.dbUpdate(func(tx clientdb.ReadWriteTx) error {
+		var err error
+		if gc, err = c.db.GetPT(tx, gcID); err != nil {
+			return err
+		}
+
+		gcAlias, err := c.GetPTAlias(gcID)
+		if err != nil {
+			gcAlias = gc.Name
+		}
+
+		return c.db.LogPTAct(tx, gcAlias, gcID, false, c.id.Public.Nick, "poker game started", time.Now())
+	})
+	if err != nil {
+		return err
+	}
+
+	return c.sendToPTMembers(gcID, gc.Members, "start", p, progressChan)
+}
+
+// PTStart sends an action to the given PT. If progressChan is not nil,
+// events are sent to it as the sending process progresses. Writes to
+// progressChan are serial, so it's important that it not block indefinitely.
+func (c *Client) HandlePTStarted(ru *RemoteUser, p rpc.RMPokerTableStart, ts time.Time) error {
+	user, err := c.UserByID(ru.ID())
+	if err != nil {
+		// Should only happen if we blocked the user
+		// during the gcm cacher delay.
+		c.log.Warnf("Delayed GC message with unknown user %s", ru.ID())
+		return err
+	}
+	fmt.Printf("p: %+v\n\n", p)
+	var pt rpc.RMPokerTableList
+	ptID := p.ID
+	err = c.dbUpdate(func(tx clientdb.ReadWriteTx) error {
+		var err error
+		if pt, err = c.db.GetPT(tx, ptID); err != nil {
+			return err
+		}
+
+		gcAlias, err := c.GetPTAlias(ptID)
+		if err != nil {
+			gcAlias = pt.Name
+		}
+
+		return c.db.LogPTAct(tx, gcAlias, ptID, false, c.id.Public.Nick, "started", time.Now())
+	})
+	if err != nil {
+		return err
+	}
+
+	c.ntfns.notifyOnPTS(user, p, ts)
+	return nil
+	// return c.sendToPTMembers(gcID, pt.Members, "start", p, progressChan)
+}
+
 // handleDelayedGCMessages is called by the gc message cacher when it's time
 // to let external callers know about new messages.
 func (c *Client) handleDelayedPTActions(msg clientintf.ReceivedPTAct) {
@@ -848,6 +911,36 @@ func (c *Client) handlePTList(ru *RemoteUser, gl rpc.RMPokerTableList) error {
 	}
 
 	return nil
+}
+
+// handlePTDraw handles updates to a GC metadata. The sending user must have
+// been the admin, otherwise this update is rejected.
+func (c *Client) HandlePTDraw(ptID zkidentity.ShortID, n uint8) error {
+	var gc rpc.RMPokerTableList
+	err := c.dbUpdate(func(tx clientdb.ReadWriteTx) error {
+		var err error
+		if gc, err = c.db.GetPT(tx, ptID); err != nil {
+			return err
+		}
+
+		gcAlias, err := c.GetPTAlias(ptID)
+		if err != nil {
+			gcAlias = gc.Name
+		}
+
+		return c.db.LogPTAct(tx, gcAlias, ptID, false, c.id.Public.Nick, "poker game started", time.Now())
+	})
+	if err != nil {
+		return err
+	}
+
+	p := rpc.RMPokerTableUserDrawn{
+		ID:  c.PublicID(),
+		Qty: n,
+	}
+
+	fmt.Printf("aqui no pt draw\n\n")
+	return c.sendToPTMembers(ptID, gc.Members, "drawn", p, nil)
 }
 
 // saveJoinedGC is called when the local client receives the first RMGroupList

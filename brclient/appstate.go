@@ -121,9 +121,13 @@ type appState struct {
 
 	chatWindowsMtx sync.Mutex
 	chatWindows    []*chatWindow
-	activeCW       int
-	prevActiveCW   int
-	updatedCW      map[int]bool
+
+	// pokerGamesWindowsMtx sync.Mutex
+	// pokerGamesWindows    []*pokerGameWindow
+
+	activeCW     int
+	prevActiveCW int
+	updatedCW    map[int]bool
 
 	connectedMtx   sync.Mutex
 	connected      connState
@@ -554,6 +558,10 @@ loop:
 				cw = as.findOrNewPTWindow(msg.ID)
 				beepNick = cw.alias
 				rawMsg = msg.Action
+			case rpc.RMPokerTableStart:
+				cw = as.findOrNewPTWindow(msg.ID)
+			case rpc.RMPokerTableUserDrawn:
+
 			default:
 				panic("unimplemented")
 			}
@@ -580,6 +588,15 @@ loop:
 		}
 		repaintChan = time.After(5 * time.Millisecond) // debounce repaints
 	}
+}
+
+func findPlayerByID(players []rpc.Player, id zkidentity.ShortID) *rpc.Player {
+	for _, player := range players {
+		if player.ID == id {
+			return &player
+		}
+	}
+	return nil
 }
 
 // storeCrash logs all currently executing goroutines to the app log and stores it as
@@ -1118,22 +1135,21 @@ func (as *appState) findOrNewGCWindow(gcID zkidentity.ShortID) *chatWindow {
 // findOrNewGCWindow finds the existing chat window for the given pt or creates
 // a new one with the given alias.
 func (as *appState) findOrNewPTWindow(gcID zkidentity.ShortID) *chatWindow {
-	gcName, err := as.c.GetGCAlias(gcID)
+	ptAlias, err := as.c.GetPTAlias(gcID)
 	if err != nil {
-		gcName = gcID.String()
+		ptAlias = gcID.String()
 	}
 
 	as.chatWindowsMtx.Lock()
 	for _, cw := range as.chatWindows {
-		if cw.isGC && cw.gc == gcID {
+		if cw.gc == gcID {
 			as.chatWindowsMtx.Unlock()
 			return cw
 		}
 	}
 
 	cw := &chatWindow{
-		alias: gcName,
-		isPT:  true,
+		alias: ptAlias,
 		gc:    gcID,
 		me:    as.c.LocalNick(),
 	}
@@ -1142,7 +1158,7 @@ func (as *appState) findOrNewPTWindow(gcID zkidentity.ShortID) *chatWindow {
 	as.updatedCW[len(as.chatWindows)-1] = false
 	as.chatWindowsMtx.Unlock()
 
-	chatHistory, initTime, err := as.c.ReadUserHistoryMessages(gcID, gcName, 500, 0)
+	chatHistory, initTime, err := as.c.ReadUserHistoryMessages(gcID, ptAlias, 500, 0)
 	if err != nil {
 		cw.newInternalMsg("Unable to read history messages")
 	}
@@ -1159,7 +1175,7 @@ func (as *appState) findOrNewPTWindow(gcID zkidentity.ShortID) *chatWindow {
 	}
 
 	as.footerInvalidate()
-	as.diagMsg("Started Poker Table %s", gcName)
+	as.diagMsg("Started Poker Table %s", ptAlias)
 	return cw
 }
 
@@ -1452,6 +1468,94 @@ func (as *appState) act(cw *chatWindow, msg string) {
 
 	err = as.c.PTAct(cw.gc, msg, rpc.MessageModeNormal, progrChan)
 
+	if err != nil {
+		as.cwHelpMsg("Unable to send act to PT %q: %v",
+			cw.alias, err)
+	} else if progrChan == nil {
+		cw.setMsgSent(m)
+		as.sendMsg(repaintActiveChat{})
+	} else {
+		for progr := range progrChan {
+			if progr.Err != nil {
+				as.diagMsg("Error while sending PT act: %v", progr.Err)
+			}
+			as.log.Debugf("Progress on PT act %d/%d",
+				progr.Sent, progr.Total)
+			if progr.Sent == progr.Total {
+				cw.setMsgSent(m)
+				as.sendMsg(repaintActiveChat{})
+				break
+			}
+		}
+	}
+}
+
+// act sends the given action in the specified window. Blocks until the
+// messsage is sent to the server.
+func (as *appState) start(cw *chatWindow) {
+	as.repaintIfActive(cw)
+
+	var err error
+	progrChan := make(chan client.SendProgress)
+
+	pt, err := as.c.GetPT(cw.gc)
+	if err != nil {
+		as.cwHelpMsg("Unable to get members of PT %q: %v",
+			cw.alias, err)
+	}
+
+	n := len(pt.Members)
+	players := make([]rpc.Player, n)
+	for i, member := range pt.Members {
+		players[i] = rpc.Player{
+			ID: member,
+			// Nick:     how to get pt member Alias?
+			Hand:     []rpc.Card{},
+			IsActive: true,
+			HasActed: false,
+		}
+	}
+	dealerPosition := 0
+	smallBlindPosition := (dealerPosition - 1 + n) % n
+	bigBlindPosition := (smallBlindPosition - 1 + n) % n
+	currentPlayer := (bigBlindPosition - 1 + n) % n
+
+	game := &PokerGame{
+		CurrentStage:   "pre-flop",
+		Pot:            0,
+		DealerPosition: dealerPosition,
+		CurrentPlayer:  currentPlayer,
+		SmallBlind:     smallBlindPosition,
+		BigBlind:       bigBlindPosition,
+		// bigBlind:
+		// smallBlind:
+		BB: 0.01,
+		SB: 0.005,
+	}
+	game.ShuffleDeck()
+	cw.pokerGame = game
+
+	p := rpc.RMPokerTableStart{
+		ID:         pt.ID,
+		Generation: pt.Generation,
+		Mode:       rpc.MessageModeNormal,
+		PokerGame: rpc.PokerGame{
+			CurrentStage:   game.CurrentStage,
+			Pot:            game.Pot,
+			CurrentPlayer:  game.CurrentPlayer,
+			DealerPosition: game.DealerPosition,
+			SmallBlind:     smallBlindPosition,
+			BigBlind:       bigBlindPosition,
+
+			BB:      0.01,
+			SB:      0.01,
+			Deck:    game.Deck,
+			Players: players,
+		},
+	}
+	err = as.c.PTStart(cw.gc, p, progrChan)
+
+	m := cw.newUnsentPM("started")
 	if err != nil {
 		as.cwHelpMsg("Unable to send act to PT %q: %v",
 			cw.alias, err)
@@ -2774,6 +2878,45 @@ func newAppState(sendMsg func(tea.Msg), lndLogLines *sloglinesbuffer.Buffer,
 		as.inboundMsgsMtx.Lock()
 		as.inboundMsgs.PushBack(inmsg)
 		as.inboundMsgsMtx.Unlock()
+		go func() {
+			select {
+			case as.inboundMsgsChan <- struct{}{}:
+			case <-as.ctx.Done():
+			}
+		}()
+	}))
+
+	ntfns.RegisterSync(client.OnPTSNtfn(func(user *client.RemoteUser, msg rpc.RMPokerTableStart, ts time.Time) {
+		inmsg := inboundRemoteMsg{user: user, rm: msg, ts: ts, recvts: time.Now()}
+		as.inboundMsgsMtx.Lock()
+		as.inboundMsgs.PushBack(inmsg)
+		as.inboundMsgsMtx.Unlock()
+		cw := as.findOrNewPTWindow(msg.ID)
+		as.chatWindowsMtx.Lock()
+		cw.pokerGame = &PokerGame{
+			Players:        msg.PokerGame.Players,
+			CommunityCards: msg.PokerGame.CommunityCards,
+			Pot:            msg.PokerGame.Pot,
+			DealerPosition: msg.PokerGame.DealerPosition,
+			BigBlind:       msg.PokerGame.BigBlind,
+			SmallBlind:     msg.PokerGame.SmallBlind,
+			BB:             msg.PokerGame.BB,
+			SB:             msg.PokerGame.SB,
+
+			Deck:          msg.PokerGame.Deck,
+			CurrentStage:  msg.PokerGame.CurrentStage,
+			CurrentPlayer: msg.PokerGame.CurrentPlayer,
+			Bot:           msg.PokerGame.Bot,
+		}
+
+		me := findPlayerByID(cw.pokerGame.Players, as.c.PublicID())
+		me.Hand = []rpc.Card{cw.pokerGame.Draw(), cw.pokerGame.Draw()}
+		as.chatWindowsMtx.Unlock()
+
+		err := as.c.HandlePTDraw(msg.ID, 2)
+		if err != nil {
+
+		}
 		go func() {
 			select {
 			case as.inboundMsgsChan <- struct{}{}:

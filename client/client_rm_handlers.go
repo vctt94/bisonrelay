@@ -164,6 +164,10 @@ func (c *Client) innerHandleUserRM(ru *RemoteUser, h *rpc.RMHeader,
 
 	case rpc.RMPokerTableAction:
 		return c.handlePTMessage(ru, p, ts)
+	case rpc.RMPokerTableStart:
+		return c.HandlePTStarted(ru, p, ts)
+	case rpc.RMPokerTableUserDrawn:
+		return c.HandlePTDraw(p.ID, p.Qty)
 
 	case rpc.RMPokerTableList:
 		return c.handlePTList(ru, p)

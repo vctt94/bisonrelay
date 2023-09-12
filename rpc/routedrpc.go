@@ -348,6 +348,8 @@ func ComposeCompressedRM(from *zkidentity.FullIdentity, rm interface{}, zlibLeve
 		h.Command = RMCPokerTableList
 	case RMPokerTableAction:
 		h.Command = RMCPokerTableMessage
+	case RMPokerTableStart:
+		h.Command = RMCPokerTableStarted
 	// Post
 	case RMListPosts:
 		h.Command = RMCListPosts
@@ -686,6 +688,10 @@ func DecomposeRM(id *zkidentity.PublicIdentity, mb []byte) (*RMHeader, interface
 		var pm RMPokerTableAction
 		err = pmd.Decode(&pm)
 		payload = pm
+	case RMCPokerTableStarted:
+		var pm RMPokerTableStart
+		err = pmd.Decode(&pm)
+		payload = pm
 	// Post
 	case RMCListPosts:
 		var listPosts RMListPosts
@@ -885,6 +891,51 @@ type RMPokerTableList struct {
 	// ExtraAdmins are additional admins. Members[0] is still considered
 	// an admin in version 1 GCs.
 	ExtraAdmins []zkidentity.ShortID `json:"extra_admins"`
+}
+type RMPokerTableUserDrawn struct {
+	ID  zkidentity.ShortID `json:"id"` // group id
+	Qty uint8              `json:"qty"`
+}
+
+type PokerGame struct {
+	Players        []Player
+	CommunityCards []Card
+	CurrentStage   string
+	Pot            int
+	CurrentPlayer  int
+	DealerPosition int
+	BigBlind       int
+	SmallBlind     int
+	BB             float64
+	SB             float64
+	Deck           []Card
+	// the bot client responsible to managing the game
+	Bot string
+}
+
+type Player struct {
+	ID       zkidentity.ShortID
+	Nick     string
+	Hand     []Card
+	Chips    int
+	Bet      int
+	IsActive bool
+	HasActed bool
+}
+
+type Card struct {
+	Value string
+	Suit  string
+}
+
+const RMCPokerTableStarted = "pokerstarted"
+
+type RMPokerTableStart struct {
+	ID         zkidentity.ShortID   `json:"id"`         // pt name
+	Generation uint64               `json:"generation"` // Generation used
+	Mode       MessageMode          `json:"mode"`       // 0 regular mode, 1 /me
+	Members    []zkidentity.ShortID `json:"members"`
+	PokerGame  PokerGame            `json:"pokergame"`
 }
 
 const RMCPokerTableMessage = "pokeraction"

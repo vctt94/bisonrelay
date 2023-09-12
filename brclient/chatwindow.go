@@ -427,10 +427,8 @@ type chatMsg struct {
 
 type chatWindow struct {
 	sync.Mutex
-	uid  clientintf.UserID
-	isGC bool
-	// is poker table
-	isPT  bool
+	uid   clientintf.UserID
+	isGC  bool
 	msgs  []*chatMsg
 	alias string
 	me    string // nick of the local user
@@ -448,6 +446,10 @@ type chatWindow struct {
 	maxSelectable int
 
 	unreadIdx int
+
+	// is poker table
+	isPT      bool
+	pokerGame *PokerGame
 }
 
 func (cw *chatWindow) empty() bool {
