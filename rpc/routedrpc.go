@@ -350,6 +350,8 @@ func ComposeCompressedRM(from *zkidentity.FullIdentity, rm interface{}, zlibLeve
 		h.Command = RMCPokerTableMessage
 	case RMPokerTableStart:
 		h.Command = RMCPokerTableStarted
+	case RMPokerGameProgressed:
+		h.Command = RMCPokerGameProgressed
 	// Post
 	case RMListPosts:
 		h.Command = RMCListPosts
@@ -692,6 +694,10 @@ func DecomposeRM(id *zkidentity.PublicIdentity, mb []byte) (*RMHeader, interface
 		var pm RMPokerTableStart
 		err = pmd.Decode(&pm)
 		payload = pm
+	case RMCPokerGameProgressed:
+		var pm RMPokerGameProgressed
+		err = pmd.Decode(&pm)
+		payload = pm
 	// Post
 	case RMCListPosts:
 		var listPosts RMListPosts
@@ -892,25 +898,30 @@ type RMPokerTableList struct {
 	// an admin in version 1 GCs.
 	ExtraAdmins []zkidentity.ShortID `json:"extra_admins"`
 }
-type RMPokerTableUserDrawn struct {
-	ID  zkidentity.ShortID `json:"id"` // group id
-	Qty uint8              `json:"qty"`
+
+const RMCPokerGameProgressed = "pokergameprogressed"
+
+type RMPokerGameProgressed struct {
+	ID   zkidentity.ShortID `json:"id"`
+	PTID zkidentity.ShortID `json:"ptid"`
+
+	PokerGame PokerGame `json:"pokergame"`
 }
 
 type PokerGame struct {
-	Players        []Player
-	CommunityCards []Card
-	CurrentStage   string
-	Pot            int
-	CurrentPlayer  int
-	DealerPosition int
-	BigBlind       int
-	SmallBlind     int
-	BB             float64
-	SB             float64
-	Deck           []Card
+	Players        []Player `json:"players"`
+	CommunityCards []Card   `json:"communitycards"`
+	CurrentStage   string   `json:"currentstage"`
+	Pot            int      `json:"pot"`
+	CurrentPlayer  int      `json:"currentplayer"`
+	DealerPosition int      `json:"dealerposition"`
+	BigBlind       int      `json:"bigblind"`
+	SmallBlind     int      `json:"smallblind"`
+	BB             float64  `json:"bb"`
+	SB             float64  `json:"sb"`
+	Deck           []Card   `json:"deck"`
 	// the bot client responsible to managing the game
-	Bot string
+	Bot string `json:"bot"`
 }
 
 type Player struct {
@@ -931,7 +942,7 @@ type Card struct {
 const RMCPokerTableStarted = "pokerstarted"
 
 type RMPokerTableStart struct {
-	ID         zkidentity.ShortID   `json:"id"`         // pt name
+	PTID       zkidentity.ShortID   `json:"id"`         // pt name
 	Generation uint64               `json:"generation"` // Generation used
 	Mode       MessageMode          `json:"mode"`       // 0 regular mode, 1 /me
 	Members    []zkidentity.ShortID `json:"members"`

@@ -178,38 +178,46 @@ func (g *PokerGame) Showdown() {
 }
 
 func (g *PokerGame) ProgressPokerGame() {
-	switch g.CurrentStage {
-	case "pre-flop":
-		if g.AllPlayersActed() {
+	n := len(g.Players)
+	g.Players[g.CurrentPlayer].HasActed = true
+
+	if g.AllPlayersActed() {
+		g.CurrentPlayer = (g.BigBlind + 1) % n // start from the player after the big blind
+		switch g.CurrentStage {
+		case "draw":
+			g.CurrentStage = "pre-flop"
+			g.ResetPlayerActions()
+		case "pre-flop":
 			g.Flop()
 			g.CurrentStage = "flop"
 			g.ResetPlayerActions()
-		}
-	case "flop":
-		if g.AllPlayersActed() {
+		case "flop":
 			g.Turn()
 			g.CurrentStage = "turn"
 			g.ResetPlayerActions()
-		}
-	case "turn":
-		if g.AllPlayersActed() {
+		case "turn":
 			g.River()
 			g.CurrentStage = "river"
 			g.ResetPlayerActions()
-		}
-	case "river":
-		if g.AllPlayersActed() {
+		case "river":
 			g.Showdown()
 			g.CurrentStage = "showdown"
+		case "showdown":
+			// Determine the winner and distribute the pot
+			g.DetermineWinner()
+			g.DistributePot()
+			g.ResetPokerGame()
 		}
-	case "showdown":
-		// Determine the winner and distribute the pot
-		g.DetermineWinner()
-		g.DistributePot()
-		g.ResetPokerGame()
+	} else {
+		// move current player
+		g.CurrentPlayer = (g.CurrentPlayer + 1) % n
+		// if we have reached the number of players, return to first player.
+		// this can happen when drawing cards.
+		if g.CurrentPlayer == len(g.Players) {
+			g.CurrentPlayer = 0
+		}
 	}
 }
-
 func (g *PokerGame) AllPlayersActed() bool {
 	for _, player := range g.Players {
 		if !player.HasActed {
@@ -220,8 +228,8 @@ func (g *PokerGame) AllPlayersActed() bool {
 }
 
 func (g *PokerGame) ResetPlayerActions() {
-	for _, player := range g.Players {
-		player.HasActed = false
+	for i, _ := range g.Players {
+		g.Players[i].HasActed = false
 	}
 }
 

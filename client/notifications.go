@@ -317,6 +317,12 @@ type OnPTANtfn func(*RemoteUser, rpc.RMPokerTableAction, time.Time)
 
 func (_ OnPTANtfn) typ() string { return onPTANtfnType }
 
+const onPTProgressedNtfnType = "onPTProgressed"
+
+type OnPTProgressedNtfn func(*RemoteUser, rpc.RMPokerGameProgressed, time.Time)
+
+func (_ OnPTProgressedNtfn) typ() string { return onPTProgressedNtfnType }
+
 const onPTSNtfnType = "onPTS"
 
 // OnPMNtfn is the handler for received private messages.
@@ -658,9 +664,14 @@ func (nmgr *NotificationManager) notifyOnPTA(user *RemoteUser, gcm rpc.RMPokerTa
 		visit(func(h OnPTANtfn) { h(user, gcm, ts) })
 }
 
-func (nmgr *NotificationManager) notifyOnPTS(user *RemoteUser, gcm rpc.RMPokerTableStart, ts time.Time) {
+func (nmgr *NotificationManager) notifyOnPTStarted(user *RemoteUser, gcm rpc.RMPokerTableStart, ts time.Time) {
 	nmgr.handlers[onPTSNtfnType].(*handlersFor[OnPTSNtfn]).
 		visit(func(h OnPTSNtfn) { h(user, gcm, ts) })
+}
+
+func (nmgr *NotificationManager) notifyOnPTProgressed(user *RemoteUser, ptg rpc.RMPokerGameProgressed, ts time.Time) {
+	nmgr.handlers[onPTProgressedNtfnType].(*handlersFor[OnPTProgressedNtfn]).
+		visit(func(h OnPTProgressedNtfn) { h(user, ptg, ts) })
 }
 
 func NewNotificationManager() *NotificationManager {
@@ -695,6 +706,7 @@ func NewNotificationManager() *NotificationManager {
 			onJoinedPTNtfnType:         &handlersFor[OnJoinedPTNtfn]{},
 			onPTANtfnType:              &handlersFor[OnPTANtfn]{},
 			onPTSNtfnType:              &handlersFor[OnPTSNtfn]{},
+			onPTProgressedNtfnType:     &handlersFor[OnPTProgressedNtfn]{},
 
 			onKXSearchCompletedNtfnType:       &handlersFor[OnKXSearchCompleted]{},
 			onInvoiceGenFailedNtfnType:        &handlersFor[OnInvoiceGenFailedNtfn]{},
