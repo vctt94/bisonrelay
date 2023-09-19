@@ -62,7 +62,7 @@ func (c *Client) NewPokerTableVersion(name string, version uint8) (zkidentity.Sh
 		if aliasMap, err := c.db.SetPTAlias(tx, id, name); err != nil {
 			c.log.Errorf("can't set name %s for pt %s: %v", name, id.String(), err)
 		} else {
-			c.setGCAlias(aliasMap)
+			c.setPTAlias(aliasMap)
 		}
 		c.log.Infof("Created new pt %q (%s)", name, id.String())
 
@@ -375,7 +375,7 @@ func (c *Client) GetPT(ptID zkidentity.ShortID) (rpc.RMPokerTableList, error) {
 	return pt, err
 }
 
-// GetGCAlias returns the local alias for the specified GC.
+// GetPTAlias returns the local alias for the specified PT.
 func (c *Client) GetPTAlias(ptID zkidentity.ShortID) (string, error) {
 	var alias string
 	c.ptAliasMtx.Lock()
@@ -387,7 +387,7 @@ func (c *Client) GetPTAlias(ptID zkidentity.ShortID) (string, error) {
 	}
 	c.ptAliasMtx.Unlock()
 	if alias == "" {
-		return "", fmt.Errorf("gc %s not found", ptID)
+		return "", fmt.Errorf("pt %s not found", ptID)
 	}
 	return alias, nil
 }
@@ -785,7 +785,7 @@ func (c *Client) ListPTs() ([]rpc.RMPokerTableList, error) {
 	return gcs, err
 }
 
-func (c *Client) handlePTMessage(ru *RemoteUser, gcm rpc.RMPokerTableAction, ts time.Time) error {
+func (c *Client) handlePTAction(ru *RemoteUser, gcm rpc.RMPokerTableAction, ts time.Time) error {
 	var gc rpc.RMPokerTableList
 	var found, isBlocked bool
 	var gcAlias string
@@ -795,11 +795,10 @@ func (c *Client) handlePTMessage(ru *RemoteUser, gcm rpc.RMPokerTableAction, ts 
 	rgcm := clientintf.ReceivedPTAct{
 		UID: ru.ID(),
 		PTA: rpc.RMPokerTableAction{
-			ID:            gcm.ID,
-			Generation:    gcm.Generation,
-			Action:        gcm.Action,
-			Mode:          gcm.Mode,
-			CurrentPlayer: gcm.CurrentPlayer,
+			ID:         gcm.ID,
+			Generation: gcm.Generation,
+			Action:     gcm.Action,
+			Mode:       gcm.Mode,
 		},
 		TS: ts,
 	}
@@ -1007,7 +1006,7 @@ func (c *Client) saveJoinedPT(ru *RemoteUser, gl rpc.RMPokerTableList) (string, 
 		if aliasMap, err := c.db.SetPTAlias(tx, gl.ID, gcName); err != nil {
 			c.log.Errorf("can't set name %s for gc %s: %v", gcName, gl.ID.String(), err)
 		} else {
-			c.setGCAlias(aliasMap)
+			c.setPTAlias(aliasMap)
 		}
 
 		// All is well. Update the local gc data.
@@ -1126,10 +1125,10 @@ func (c *Client) maybeUpdatePTFunc(ru *RemoteUser, gcid zkidentity.ShortID, f fu
 			if err := c.db.DeleteGC(tx, oldGC.ID); err != nil {
 				return err
 			}
-			if aliasMap, err := c.db.SetGCAlias(tx, oldGC.ID, ""); err != nil {
+			if aliasMap, err := c.db.SetPTAlias(tx, oldGC.ID, ""); err != nil {
 				return err
 			} else {
-				c.setGCAlias(aliasMap)
+				c.setPTAlias(aliasMap)
 			}
 			return nil
 		}

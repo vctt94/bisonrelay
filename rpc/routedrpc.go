@@ -957,8 +957,6 @@ type RMPokerTableAction struct {
 	Generation uint64             `json:"generation"` // Generation used
 	Action     string             `json:"action"`     // Actual message
 	Mode       MessageMode        `json:"mode"`       // 0 regular mode, 1 /me
-	// CurrentPlayer is the index of the current player in the Player array
-	CurrentPlayer uint8 `json:"currentplayer"`
 }
 
 const RMCGroupJoin = "groupjoin"

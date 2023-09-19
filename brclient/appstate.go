@@ -561,16 +561,13 @@ loop:
 			case rpc.RMPokerTableStart:
 				cw = as.findOrNewPTWindow(msg.PTID)
 				beepNick = cw.alias
-				// if cw.pokerGame.Players[cw.pokerGame.CurrentPlayer].ID == as.c.PublicID() {
-				// 	as.progressPokerGame(cw)
-				// }
+				currentPlayer := msg.PokerGame.Players[msg.PokerGame.CurrentPlayer]
+				rawMsg = fmt.Sprintf("Poker Game Started! Player's turn: %s", currentPlayer.Nick)
 			case rpc.RMPokerGameProgressed:
 				cw = as.findOrNewPTWindow(msg.PTID)
 				beepNick = cw.alias
-				// if cw.pokerGame.Players[cw.pokerGame.CurrentPlayer].ID == as.c.PublicID() {
-				// 	as.progressPokerGame(cw)
-				// }
-				// rawMsg = msg.Action
+				currentPlayer := msg.PokerGame.Players[msg.PokerGame.CurrentPlayer]
+				rawMsg = fmt.Sprintf("Poker Game Progressed! Player's turn: %s", currentPlayer.Nick)
 
 			default:
 				panic("unimplemented")
@@ -601,9 +598,9 @@ loop:
 }
 
 func findPlayerByID(players []rpc.Player, id zkidentity.ShortID) *rpc.Player {
-	for _, player := range players {
-		if player.ID == id {
-			return &player
+	for i := range players {
+		if players[i].ID == id {
+			return &players[i]
 		}
 	}
 	return nil
@@ -1470,19 +1467,51 @@ func (as *appState) pm(cw *chatWindow, msg string) {
 // act sends the given action in the specified window. Blocks until the
 // messsage is sent to the server.
 func (as *appState) act(cw *chatWindow, msg string) {
-	m := cw.newUnsentPM(msg)
-	as.repaintIfActive(cw)
+	var m string
 
+	nick := cw.me
+	game := cw.pokerGame
+
+	if game.Players[game.CurrentPlayer].ID != as.c.PublicID() {
+		as.cwHelpMsg("Not player's turn")
+		return
+	}
+	if strings.HasPrefix(msg, "bet") {
+		_, betSize := popNArgs(msg, 1)
+		chips, err := strconv.Atoi(betSize)
+		if err != nil {
+			as.cwHelpMsg("Invalid bet amount: %v", err)
+			return
+		}
+
+		game.Players[game.CurrentPlayer].Chips -= chips
+		game.Pot += chips
+		game.Players[game.CurrentPlayer].HasActed = true
+		m = fmt.Sprintf("%s has bet %d chips\n", nick, chips)
+	}
+	if strings.HasPrefix(msg, "check") {
+		game.Players[game.CurrentPlayer].HasActed = true
+		m = fmt.Sprintf("%s has checked", nick)
+	}
+	if strings.HasPrefix(msg, "call") {
+		game.Players[game.CurrentPlayer].HasActed = true
+		m = fmt.Sprintf("%s has called", nick)
+	}
+	if strings.HasPrefix(msg, "fold") {
+		game.Players[game.CurrentPlayer].HasActed = true
+		m = fmt.Sprintf("%s has Folled", nick)
+	}
+	mToSend := cw.newUnsentPM(m)
 	var err error
 	progrChan := make(chan client.SendProgress)
 
-	err = as.c.PTAct(cw.gc, msg, rpc.MessageModeNormal, progrChan)
+	err = as.c.PTAct(cw.gc, m, rpc.MessageModeNormal, progrChan)
 
 	if err != nil {
 		as.cwHelpMsg("Unable to send act to PT %q: %v",
 			cw.alias, err)
 	} else if progrChan == nil {
-		cw.setMsgSent(m)
+		cw.setMsgSent(mToSend)
 		as.sendMsg(repaintActiveChat{})
 	} else {
 		for progr := range progrChan {
@@ -1492,40 +1521,33 @@ func (as *appState) act(cw *chatWindow, msg string) {
 			as.log.Debugf("Progress on PT act %d/%d",
 				progr.Sent, progr.Total)
 			if progr.Sent == progr.Total {
-				cw.setMsgSent(m)
+				cw.setMsgSent(mToSend)
 				as.sendMsg(repaintActiveChat{})
 				break
 			}
 		}
 	}
+
+	as.progressPokerGame(cw)
 }
 
 // progressPokerGame sends the given action in the specified window. Blocks until the
 // messsage is sent to the server.
 func (as *appState) progressPokerGame(cw *chatWindow) {
+	oldCurrentStage := cw.pokerGame.CurrentStage
 	cw.pokerGame.ProgressPokerGame()
+	if cw.pokerGame.CurrentStage != oldCurrentStage {
+		cw.newInternalMsg("Current Stage: %s", cw.pokerGame.CurrentStage)
+		currentPlayer := cw.pokerGame.Players[cw.pokerGame.CurrentPlayer]
+		// fmt.Printf("currentPlayer: %+v\n\n", currentPlayer)
+
+		cw.newInternalMsg("Current Player: %s", currentPlayer.Nick)
+		cw.newInternalMsg("Community Cards: %v", cw.pokerGame.CommunityCards)
+	}
 
 	as.repaintIfActive(cw)
 	var err error
 	progrChan := make(chan client.SendProgress)
-
-	pt, err := as.c.GetPT(cw.gc)
-	if err != nil {
-		as.cwHelpMsg("Unable to get members of PT %q: %v",
-			cw.alias, err)
-	}
-
-	n := len(pt.Members)
-	players := make([]rpc.Player, n)
-	for i, member := range pt.Members {
-		players[i] = rpc.Player{
-			ID: member,
-			// Nick:     how to get pt member Alias?
-			Hand:     []rpc.Card{},
-			IsActive: true,
-			HasActed: false,
-		}
-	}
 
 	g := rpc.PokerGame{
 		Players:        cw.pokerGame.Players,
@@ -1547,27 +1569,9 @@ func (as *appState) progressPokerGame(cw *chatWindow) {
 		PTID:      cw.gc,
 	}
 	err = as.c.ProgressGame(cw.gc, p, progrChan)
-
-	m := cw.newUnsentPM("progressed")
 	if err != nil {
-		as.cwHelpMsg("Unable to send act to PT %q: %v",
+		as.cwHelpMsg("Unable to progress PT %q: %v",
 			cw.alias, err)
-	} else if progrChan == nil {
-		cw.setMsgSent(m)
-		as.sendMsg(repaintActiveChat{})
-	} else {
-		for progr := range progrChan {
-			if progr.Err != nil {
-				as.diagMsg("Error while sending PT act: %v", progr.Err)
-			}
-			as.log.Debugf("Progress on PT act %d/%d",
-				progr.Sent, progr.Total)
-			if progr.Sent == progr.Total {
-				cw.setMsgSent(m)
-				as.sendMsg(repaintActiveChat{})
-				break
-			}
-		}
 	}
 }
 
@@ -1639,27 +1643,9 @@ func (as *appState) start(cw *chatWindow) {
 		},
 	}
 	err = as.c.PTStart(cw.gc, p, progrChan)
-
-	m := cw.newUnsentPM("started")
 	if err != nil {
-		as.cwHelpMsg("Unable to send act to PT %q: %v",
+		as.cwHelpMsg("Unable to start PT %q: %v",
 			cw.alias, err)
-	} else if progrChan == nil {
-		cw.setMsgSent(m)
-		as.sendMsg(repaintActiveChat{})
-	} else {
-		for progr := range progrChan {
-			if progr.Err != nil {
-				as.diagMsg("Error while sending PT act: %v", progr.Err)
-			}
-			as.log.Debugf("Progress on PT act %d/%d",
-				progr.Sent, progr.Total)
-			if progr.Sent == progr.Total {
-				cw.setMsgSent(m)
-				as.sendMsg(repaintActiveChat{})
-				break
-			}
-		}
 	}
 }
 
@@ -2978,6 +2964,9 @@ func newAppState(sendMsg func(tea.Msg), lndLogLines *sloglinesbuffer.Buffer,
 		as.inboundMsgsMtx.Unlock()
 		cw := as.findOrNewPTWindow(msg.PTID)
 		cw.newInternalMsg("poker game started")
+		// update nick in case does not have it
+		me := findPlayerByID(msg.PokerGame.Players, as.c.PublicID())
+		me.Nick = cw.me
 		as.chatWindowsMtx.Lock()
 		cw.pokerGame = &PokerGame{
 			Players:        msg.PokerGame.Players,
@@ -2997,7 +2986,6 @@ func newAppState(sendMsg func(tea.Msg), lndLogLines *sloglinesbuffer.Buffer,
 		as.chatWindowsMtx.Unlock()
 
 		if cw.pokerGame.Players[cw.pokerGame.CurrentPlayer].ID == as.c.PublicID() {
-			me := findPlayerByID(cw.pokerGame.Players, as.c.PublicID())
 			// start drawing cards
 			me.Hand = []rpc.Card{cw.pokerGame.Draw(), cw.pokerGame.Draw()}
 			cw.newInternalMsg("my hand: %+v\n", me.Hand)
@@ -3020,9 +3008,15 @@ func newAppState(sendMsg func(tea.Msg), lndLogLines *sloglinesbuffer.Buffer,
 		as.inboundMsgsMtx.Unlock()
 		cw := as.findOrNewPTWindow(msg.PTID)
 		cw.newInternalMsg("poker game progressed")
+		// update nick in case still does not know it
+		me := findPlayerByID(msg.PokerGame.Players, as.c.PublicID())
+		me.Nick = cw.me
 		as.chatWindowsMtx.Lock()
-		if cw.pokerGame.CurrentStage != msg.PokerGame.CurrentStage {
-			cw.newInternalMsg("Current Stage: %v\n", msg.PokerGame.CurrentStage)
+		if cw.pokerGame != nil && cw.pokerGame.CurrentStage != msg.PokerGame.CurrentStage {
+			cw.newInternalMsg("Current Stage: %s", msg.PokerGame.CurrentStage)
+			currentPlayer := msg.PokerGame.Players[msg.PokerGame.CurrentPlayer]
+			cw.newInternalMsg("Current Player: %s", currentPlayer.Nick)
+			cw.newInternalMsg("Community Cards: %v", msg.PokerGame.CommunityCards)
 		}
 		cw.pokerGame = &PokerGame{
 			Players:        msg.PokerGame.Players,
@@ -3041,17 +3035,32 @@ func newAppState(sendMsg func(tea.Msg), lndLogLines *sloglinesbuffer.Buffer,
 		}
 		as.chatWindowsMtx.Unlock()
 
-		if cw.pokerGame.Players[cw.pokerGame.CurrentPlayer].ID == as.c.PublicID() {
-			me := findPlayerByID(cw.pokerGame.Players, as.c.PublicID())
-			if cw.pokerGame.CurrentStage == "draw" {
+		if cw.pokerGame.CurrentStage == "draw" {
+			if cw.pokerGame.Players[cw.pokerGame.CurrentPlayer].ID == as.c.PublicID() {
+				me := findPlayerByID(cw.pokerGame.Players, as.c.PublicID())
+
 				me.Hand = []rpc.Card{cw.pokerGame.Draw(), cw.pokerGame.Draw()}
-				cw.newInternalMsg("my hand: %+v\n\n", me.Hand)
+				cw.pokerGame.Players[cw.pokerGame.CurrentPlayer].HasActed = true
+				cw.newInternalMsg("my hand: %v", me.Hand)
 				as.progressPokerGame(cw)
-				if msg.PokerGame.CurrentStage != cw.pokerGame.CurrentStage {
-					cw.newInternalMsg("Current Stage: %s", cw.pokerGame.CurrentStage)
-				}
 			}
 		}
+
+		go func() {
+			select {
+			case as.inboundMsgsChan <- struct{}{}:
+			case <-as.ctx.Done():
+			}
+		}()
+	}))
+
+	ntfns.RegisterSync(client.OnPTActionNtfn(func(user *client.RemoteUser, msg rpc.RMPokerTableAction, ts time.Time) {
+		inmsg := inboundRemoteMsg{user: user, rm: msg, ts: ts, recvts: time.Now()}
+		as.inboundMsgsMtx.Lock()
+		as.inboundMsgs.PushBack(inmsg)
+		as.inboundMsgsMtx.Unlock()
+		cw := as.findOrNewPTWindow(msg.ID)
+		cw.newInternalMsg("poker game action, from: %s", user.Nick())
 
 		go func() {
 			select {

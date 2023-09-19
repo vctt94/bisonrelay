@@ -1389,6 +1389,65 @@ var ptCommands = []tuicmd{
 		},
 	},
 	{
+		cmd:     "progress",
+		aliases: []string{"s"},
+		usage:   "<pt name>",
+		descr:   "progress current poker game",
+		rawHandler: func(rawCmd string, args []string, as *appState) error {
+			if len(args) < 1 {
+				return usageError{"pt name cannot be empty"}
+			}
+
+			gcname := args[0]
+			gcID, err := as.c.PTIDByName(gcname)
+			if err != nil {
+				return err
+			}
+
+			if _, err := as.c.GetPT(gcID); err != nil {
+				return err
+			}
+
+			cw := as.findOrNewPTWindow(gcID)
+			// can't progress nil game
+			if cw.pokerGame == nil {
+				go func() {
+					cw.newInternalMsg("Poker game does not exist")
+				}()
+				return nil
+			}
+			// can't progress game without every player has acted
+			players := cw.pokerGame.Players
+			for _, player := range players {
+				if !player.HasActed {
+					go func() {
+						cw.newInternalMsg("Can't progress game with player to act")
+					}()
+					return nil
+				}
+			}
+			go as.progressPokerGame(cw)
+
+			// as.cwHelpMsgs(func(pf printf) {
+			// 	pf("")
+			// 	pf("Poker game:")
+			// 	for _, card := range cw.pokerGame.Deck {
+
+			// 		pf("%s - %s members",
+			// 			card.Value,
+			// 			card.Suit)
+			// 	}
+			// })
+			return nil
+		},
+		completer: func(args []string, arg string, as *appState) []string {
+			if len(args) == 0 {
+				return gcCompleter(arg, as)
+			}
+			return nil
+		},
+	},
+	{
 		cmd:   "join",
 		usage: "<pt name>",
 		descr: "Join the given PT we were invited to",
@@ -1445,17 +1504,16 @@ var ptCommands = []tuicmd{
 				if err != nil {
 					return err
 				}
-				fmt.Printf("pts: %+v\n\n", pts)
 				var maxNameLen int
-				gcNames := make(map[clientintf.ID]string, len(pts))
-				for _, gc := range pts {
-					alias, err := as.c.GetPTAlias(gc.ID)
+				ptNames := make(map[clientintf.ID]string, len(pts))
+				for _, pt := range pts {
+					alias, err := as.c.GetPTAlias(pt.ID)
 					if err != nil {
-						alias = gc.ID.ShortLogID()
+						alias = pt.ID.ShortLogID()
 					} else {
 						alias = strescape.Nick(alias)
 					}
-					gcNames[gc.ID] = alias
+					ptNames[pt.ID] = alias
 					nameLen := lipgloss.Width(alias)
 					if nameLen > maxNameLen {
 						maxNameLen = nameLen
@@ -1464,8 +1522,8 @@ var ptCommands = []tuicmd{
 				maxNameLen = clamp(maxNameLen, 5, as.winW-64-10)
 
 				sort.Slice(pts, func(i, j int) bool {
-					ni := gcNames[pts[i].ID]
-					nj := gcNames[pts[j].ID]
+					ni := ptNames[pts[i].ID]
+					nj := ptNames[pts[j].ID]
 					return as.collator.CompareString(ni, nj) < 0
 				})
 
@@ -1473,7 +1531,7 @@ var ptCommands = []tuicmd{
 					pf("")
 					pf("List of PTs:")
 					for _, pt := range pts {
-						ptAlias := gcNames[pt.ID]
+						ptAlias := ptNames[pt.ID]
 						pf("%*s - %s - %d members",
 							maxNameLen,
 							ptAlias,

@@ -317,6 +317,12 @@ type OnPTANtfn func(*RemoteUser, rpc.RMPokerTableAction, time.Time)
 
 func (_ OnPTANtfn) typ() string { return onPTANtfnType }
 
+const onPTActionNtfnType = "onPTAction"
+
+type OnPTActionNtfn func(*RemoteUser, rpc.RMPokerTableAction, time.Time)
+
+func (_ OnPTActionNtfn) typ() string { return onPTActionNtfnType }
+
 const onPTProgressedNtfnType = "onPTProgressed"
 
 type OnPTProgressedNtfn func(*RemoteUser, rpc.RMPokerGameProgressed, time.Time)
@@ -674,6 +680,11 @@ func (nmgr *NotificationManager) notifyOnPTProgressed(user *RemoteUser, ptg rpc.
 		visit(func(h OnPTProgressedNtfn) { h(user, ptg, ts) })
 }
 
+func (nmgr *NotificationManager) notifyOnPTAction(user *RemoteUser, ptg rpc.RMPokerTableAction, ts time.Time) {
+	nmgr.handlers[onPTActionNtfnType].(*handlersFor[OnPTActionNtfn]).
+		visit(func(h OnPTActionNtfn) { h(user, ptg, ts) })
+}
+
 func NewNotificationManager() *NotificationManager {
 	return &NotificationManager{
 		handlers: map[string]handlersRegistry{
@@ -707,6 +718,7 @@ func NewNotificationManager() *NotificationManager {
 			onPTANtfnType:              &handlersFor[OnPTANtfn]{},
 			onPTSNtfnType:              &handlersFor[OnPTSNtfn]{},
 			onPTProgressedNtfnType:     &handlersFor[OnPTProgressedNtfn]{},
+			onPTActionNtfnType:         &handlersFor[OnPTActionNtfn]{},
 
 			onKXSearchCompletedNtfnType:       &handlersFor[OnKXSearchCompleted]{},
 			onInvoiceGenFailedNtfnType:        &handlersFor[OnInvoiceGenFailedNtfn]{},

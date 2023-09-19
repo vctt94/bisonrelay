@@ -179,7 +179,6 @@ func (g *PokerGame) Showdown() {
 
 func (g *PokerGame) ProgressPokerGame() {
 	n := len(g.Players)
-	g.Players[g.CurrentPlayer].HasActed = true
 
 	if g.AllPlayersActed() {
 		g.CurrentPlayer = (g.BigBlind + 1) % n // start from the player after the big blind
