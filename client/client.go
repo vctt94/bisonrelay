@@ -278,6 +278,10 @@ type Client struct {
 
 	newUsersChan chan *RemoteUser
 
+	// ptAliasMap maps a local pt name to a global pt id.
+	ptAliasMtx sync.Mutex
+	ptAliasMap map[string]zkidentity.ShortID
+
 	// gcAliasMap maps a local gc name to a global gc id.
 	gcAliasMtx sync.Mutex
 	gcAliasMap map[string]zkidentity.ShortID
@@ -408,7 +412,7 @@ func New(cfg Config) (*Client, error) {
 	// were received by the server (vs in arbitrary order based on which
 	// ratchets are updated first).
 	c.gcmq = gcmcacher.New(cfg.GCMQMaxLifetime, cfg.GCMQUpdtDelay, cfg.GCMQInitialDelay,
-		cfg.logger("GCMQ"), c.handleDelayedGCMessages)
+		cfg.logger("GCMQ"), c.handleDelayedGCMessages, c.handleDelayedPTActions)
 
 	rmgrdb.c = c
 	rmqdb.c = c

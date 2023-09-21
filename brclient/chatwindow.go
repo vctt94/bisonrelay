@@ -446,6 +446,10 @@ type chatWindow struct {
 	maxSelectable int
 
 	unreadIdx int
+
+	// is poker table
+	isPT      bool
+	pokerGame *PokerGame
 }
 
 func (cw *chatWindow) empty() bool {

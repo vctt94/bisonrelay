@@ -339,6 +339,19 @@ func ComposeCompressedRM(from *zkidentity.FullIdentity, rm interface{}, zlibLeve
 	case RMUserReply:
 		h.Command = RMCUserReply
 
+	// Poker
+	case RMPokerTableInvite:
+		h.Command = RMCPokerTableInvite
+	case RMPokerTableJoin:
+		h.Command = RMCPokerTableJoin
+	case RMPokerTableList:
+		h.Command = RMCPokerTableList
+	case RMPokerTableAction:
+		h.Command = RMCPokerTableMessage
+	case RMPokerTableStart:
+		h.Command = RMCPokerTableStarted
+	case RMPokerGameProgressed:
+		h.Command = RMCPokerGameProgressed
 	// Post
 	case RMListPosts:
 		h.Command = RMCListPosts
@@ -660,6 +673,31 @@ func DecomposeRM(id *zkidentity.PublicIdentity, mb []byte) (*RMHeader, interface
 		err = pmd.Decode(&userReply)
 		payload = userReply
 
+	// Poker
+	case RMCPokerTableInvite:
+		var pokerInvite RMPokerTableInvite
+		err = pmd.Decode(&pokerInvite)
+		payload = pokerInvite
+	case RMCPokerTableJoin:
+		var pokerJoin RMPokerTableJoin
+		err = pmd.Decode(&pokerJoin)
+		payload = pokerJoin
+	case RMCPokerTableList:
+		var groupInvite RMPokerTableList
+		err = pmd.Decode(&groupInvite)
+		payload = groupInvite
+	case RMCPokerTableMessage:
+		var pm RMPokerTableAction
+		err = pmd.Decode(&pm)
+		payload = pm
+	case RMCPokerTableStarted:
+		var pm RMPokerTableStart
+		err = pmd.Decode(&pm)
+		payload = pm
+	case RMCPokerGameProgressed:
+		var pm RMPokerGameProgressed
+		err = pmd.Decode(&pm)
+		payload = pm
 	// Post
 	case RMCListPosts:
 		var listPosts RMListPosts
@@ -816,6 +854,110 @@ type RMGroupJoin struct {
 	ID    zkidentity.ShortID `json:"id"`    // group id
 	Token uint64             `json:"token"` // invite token, implicitly identifies sender
 	Error string             `json:"error"` // accept or deny Invite
+}
+
+const RMCPokerTableJoin = "pokerjoin"
+
+type RMPokerTableJoin struct {
+	// XXX who sent this?
+	ID    zkidentity.ShortID `json:"id"`    // group id
+	Token uint64             `json:"token"` // invite token, implicitly identifies sender
+	Error string             `json:"error"` // accept or deny Invite
+}
+
+const RMCPokerTableInvite = "pokerinvite"
+
+type RMPokerTableInvite struct {
+	ID          zkidentity.ShortID `json:"id"`          // group id
+	Name        string             `json:"name"`        // requested group name
+	Token       uint64             `json:"token"`       // invite token
+	Description string             `json:"description"` // group description
+	Expires     int64              `json:"expires"`     // unix time when this invite expires
+	Version     uint8              `json:"version"`     // version the PT is running on
+}
+
+const RMCPokerTableList = "pokertablelist"
+
+// RMPokerTableList, currently we detect spoofing by ensuring the origin of the
+// message.  This may not be sufficient and we may have to add a signature of
+// sorts.  For now roll with this assumption.
+type RMPokerTableList struct {
+	ID         zkidentity.ShortID `json:"id"` // group id
+	Name       string             `json:"name"`
+	Generation uint64             `json:"generation"` // incremented every time list changes
+	Timestamp  int64              `json:"timestamp"`  // unix time last generation changed
+	Version    uint8              `json:"version"`    // version of the rules for GC op
+
+	// all participants, [0] is administrator
+	// receiver must check [0] == originator
+	Members []zkidentity.ShortID `json:"members"`
+
+	// Version 1 fields.
+
+	// ExtraAdmins are additional admins. Members[0] is still considered
+	// an admin in version 1 GCs.
+	ExtraAdmins []zkidentity.ShortID `json:"extra_admins"`
+}
+
+const RMCPokerGameProgressed = "pokergameprogressed"
+
+type RMPokerGameProgressed struct {
+	ID   zkidentity.ShortID `json:"id"`
+	PTID zkidentity.ShortID `json:"ptid"`
+
+	PokerGame PokerGame `json:"pokergame"`
+}
+
+type PokerGame struct {
+	Players        []Player `json:"players"`
+	CommunityCards []Card   `json:"communitycards"`
+	CurrentStage   string   `json:"currentstage"`
+	CurrentPlayer  int      `json:"currentplayer"`
+	DealerPosition int      `json:"dealerposition"`
+	BigBlind       int      `json:"bigblind"`
+	SmallBlind     int      `json:"smallblind"`
+	Pot            float64  `json:"pot"`
+	BB             float64  `json:"bb"`
+	SB             float64  `json:"sb"`
+	Deck           []Card   `json:"deck"`
+	// the bot client responsible to managing the game
+	Bot    zkidentity.ShortID `json:"bot"`
+	Winner zkidentity.ShortID `json:"winner"`
+}
+
+type Player struct {
+	ID       zkidentity.ShortID
+	Nick     string
+	Hand     []Card
+	Chips    int
+	Bet      int
+	IsActive bool
+	HasActed bool
+}
+
+type Card struct {
+	Value string
+	Suit  string
+}
+
+const RMCPokerTableStarted = "pokerstarted"
+
+type RMPokerTableStart struct {
+	PTID       zkidentity.ShortID   `json:"id"`         // pt name
+	Generation uint64               `json:"generation"` // Generation used
+	Mode       MessageMode          `json:"mode"`       // 0 regular mode, 1 /me
+	Members    []zkidentity.ShortID `json:"members"`
+	PokerGame  PokerGame            `json:"pokergame"`
+}
+
+const RMCPokerTableMessage = "pokeraction"
+
+// RMPokerTableAction is a message to a group.
+type RMPokerTableAction struct {
+	ID         zkidentity.ShortID `json:"id"`         // group name
+	Generation uint64             `json:"generation"` // Generation used
+	Action     string             `json:"action"`     // Actual message
+	Mode       MessageMode        `json:"mode"`       // 0 regular mode, 1 /me
 }
 
 const RMCGroupJoin = "groupjoin"

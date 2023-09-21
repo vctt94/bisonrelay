@@ -57,6 +57,10 @@ type gcmq struct {
 	msgs []clientintf.ReceivedGCMsg
 }
 
+type ptaq struct {
+	actions []clientintf.ReceivedPTAct
+}
+
 func (gc *gcmq) Len() int {
 	return len(gc.msgs)
 }
@@ -71,6 +75,29 @@ func (gc *gcmq) Swap(i, j int) {
 
 func (gc *gcmq) Push(v any) {
 	gc.msgs = append(gc.msgs, v.(clientintf.ReceivedGCMsg))
+}
+
+func (gc *ptaq) Len() int {
+	return len(gc.actions)
+}
+
+func (gc *ptaq) Less(i, j int) bool {
+	return gc.actions[i].TS.Before(gc.actions[j].TS)
+}
+
+func (gc *ptaq) Swap(i, j int) {
+	gc.actions[i], gc.actions[j] = gc.actions[j], gc.actions[i]
+}
+
+func (gc *ptaq) Push(v any) {
+	gc.actions = append(gc.actions, v.(clientintf.ReceivedPTAct))
+}
+
+func (gc *ptaq) Pop() any {
+	l := len(gc.actions)
+	r := gc.actions[l-1]
+	gc.actions = gc.actions[:l-1]
+	return r
 }
 
 func (gc *gcmq) Pop() any {
@@ -166,11 +193,13 @@ type Cacher struct {
 	updateDelay  time.Duration
 	initialDelay time.Duration
 
-	handler func(clientintf.ReceivedGCMsg)
-	log     slog.Logger
+	handler   func(clientintf.ReceivedGCMsg)
+	handlerPT func(clientintf.ReceivedPTAct)
+	log       slog.Logger
 
 	quit          chan struct{}
 	msgChan       chan clientintf.ReceivedGCMsg
+	ptActChan     chan clientintf.ReceivedPTAct
 	rmChan        chan rmMsg
 	reloadChan    chan []clientintf.ReceivedGCMsg
 	connectedChan chan bool
@@ -181,18 +210,20 @@ type Cacher struct {
 // is a max delay after which messages will be delivered, regardless of being
 // received within delayDuration of each other.
 func New(maxLifetime, updateDelay, initialDelay time.Duration,
-	log slog.Logger, handler func(clientintf.ReceivedGCMsg)) *Cacher {
+	log slog.Logger, handler func(clientintf.ReceivedGCMsg), handlerPT func(clientintf.ReceivedPTAct)) *Cacher {
 
 	c := &Cacher{
 		maxLifetime:  maxLifetime,
 		updateDelay:  updateDelay,
 		initialDelay: initialDelay,
 		handler:      handler,
+		handlerPT:    handlerPT,
 		log:          log,
 
 		quit:          make(chan struct{}),
 		rmChan:        make(chan rmMsg),
 		msgChan:       make(chan clientintf.ReceivedGCMsg),
+		ptActChan:     make(chan clientintf.ReceivedPTAct),
 		reloadChan:    make(chan []clientintf.ReceivedGCMsg),
 		connectedChan: make(chan bool),
 	}
@@ -203,6 +234,15 @@ func New(maxLifetime, updateDelay, initialDelay time.Duration,
 func (c *Cacher) RMReceived(uid clientintf.UserID, ts time.Time) {
 	select {
 	case c.rmChan <- rmMsg{uid: uid, ts: ts}:
+	case <-c.quit:
+	}
+}
+
+// GCMessageReceived should be called whenever a new GC message is externally
+// received.
+func (c *Cacher) PTActionReceived(msg clientintf.ReceivedPTAct) {
+	select {
+	case c.ptActChan <- msg:
 	case <-c.quit:
 	}
 }
@@ -238,6 +278,7 @@ func (c *Cacher) Run(ctx context.Context) error {
 	// Working queues.
 	msgs := &gcmq{}
 	users := &ruq{}
+	actions := &ptaq{}
 
 	updtTicker := time.NewTicker(c.updateDelay)
 	updtTicker.Stop()
@@ -279,6 +320,29 @@ loop:
 			// We'll need to delay this message. Store in message
 			// queue, sorted by timestamp.
 			heap.Push(msgs, msg)
+
+			if initialDelayChan != nil {
+				continue loop
+			}
+
+		case ptAct := <-c.ptActChan:
+			if doneCaching {
+				// Caching already done, call handler without
+				// delay.
+				c.log.Tracef("Pushing message from %s in pt %s with ts %s",
+					ptAct.UID, ptAct.PTA.ID, ptAct.TS)
+				if c.handler != nil {
+					c.handlerPT(ptAct)
+				}
+				continue loop
+			}
+
+			c.log.Tracef("Delaying message from %s in pt %s with ts %s",
+				ptAct.UID, ptAct.PTA.ID, ptAct.TS)
+
+			// We'll need to delay this message. Store in message
+			// queue, sorted by timestamp.
+			heap.Push(actions, ptAct)
 
 			if initialDelayChan != nil {
 				continue loop

@@ -172,6 +172,14 @@ func (id PagesSessionID) String() string {
 	return fmt.Sprintf("%08d", id)
 }
 
+// ReceivedPTAct is an individual PT act received by a local client.
+type ReceivedPTAct struct {
+	MsgID zkidentity.ShortID     `json:"msg_id"`
+	UID   UserID                 `json:"uid"`
+	PTA   rpc.RMPokerTableAction `json:"pta"`
+	TS    time.Time              `json:"ts"`
+}
+
 // ReceivedGCMsg is an individual GC message received by a local client.
 type ReceivedGCMsg struct {
 	MsgID zkidentity.ShortID `json:"msg_id"`

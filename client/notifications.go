@@ -288,6 +288,54 @@ type OnUnsubscribingIdleRemoteClient func(user *RemoteUser, lastDecTime time.Tim
 
 func (_ OnUnsubscribingIdleRemoteClient) typ() string { return onUnsubscribingIdleRemoteClient }
 
+const onInvitedToPTNtfnType = "onInvitedToPT"
+
+// OnInvitedToGCNtfn is a handler for invites received to join GCs.
+type OnInvitedToPTNtfn func(user *RemoteUser, iid uint64, invite rpc.RMPokerTableInvite)
+
+func (_ OnInvitedToPTNtfn) typ() string { return onInvitedToPTNtfnType }
+
+const onJoinedPTNtfnType = "onJoinedPT"
+
+// OnInvitedToGCNtfn is a handler for invites received to join GCs.
+type OnJoinedPTNtfn func(invite rpc.RMPokerTableList)
+
+func (_ OnJoinedPTNtfn) typ() string { return onJoinedPTNtfnType }
+
+const onPTInviteAcceptedNtfnType = "onPTInviteAccepted"
+
+// OnGCInviteAcceptedNtfn is a handler for invites accepted by remote users to
+// join a GC we invited them to.
+type OnPTInviteAcceptedNtfn func(user *RemoteUser, gc rpc.RMPokerTableList)
+
+func (_ OnPTInviteAcceptedNtfn) typ() string { return onPTInviteAcceptedNtfnType }
+
+const onPTANtfnType = "onPTA"
+
+// OnPMNtfn is the handler for received private messages.
+type OnPTANtfn func(*RemoteUser, rpc.RMPokerTableAction, time.Time)
+
+func (_ OnPTANtfn) typ() string { return onPTANtfnType }
+
+const onPTActionNtfnType = "onPTAction"
+
+type OnPTActionNtfn func(*RemoteUser, rpc.RMPokerTableAction, time.Time)
+
+func (_ OnPTActionNtfn) typ() string { return onPTActionNtfnType }
+
+const onPTProgressedNtfnType = "onPTProgressed"
+
+type OnPTProgressedNtfn func(*RemoteUser, rpc.RMPokerGameProgressed, time.Time)
+
+func (_ OnPTProgressedNtfn) typ() string { return onPTProgressedNtfnType }
+
+const onPTSNtfnType = "onPTS"
+
+// OnPMNtfn is the handler for received private messages.
+type OnPTSNtfn func(*RemoteUser, rpc.RMPokerTableStart, time.Time)
+
+func (_ OnPTSNtfn) typ() string { return onPTSNtfnType }
+
 // The following is used only in tests.
 
 const onTestNtfnType = "testNtfnType"
@@ -602,6 +650,41 @@ func (nmgr *NotificationManager) notifyUnsubscribingIdleRemote(ru *RemoteUser, l
 		visit(func(h OnUnsubscribingIdleRemoteClient) { h(ru, lastDecTime) })
 }
 
+func (nmgr *NotificationManager) notifyInvitedToPT(user *RemoteUser, iid uint64, invite rpc.RMPokerTableInvite) {
+	nmgr.handlers[onInvitedToPTNtfnType].(*handlersFor[OnInvitedToPTNtfn]).
+		visit(func(h OnInvitedToPTNtfn) { h(user, iid, invite) })
+}
+
+func (nmgr *NotificationManager) notifyOnJoinedPT(gc rpc.RMPokerTableList) {
+	nmgr.handlers[onJoinedPTNtfnType].(*handlersFor[OnJoinedPTNtfn]).
+		visit(func(h OnJoinedPTNtfn) { h(gc) })
+}
+
+func (nmgr *NotificationManager) notifyPTInviteAccepted(user *RemoteUser, gc rpc.RMPokerTableList) {
+	nmgr.handlers[onPTInviteAcceptedNtfnType].(*handlersFor[OnPTInviteAcceptedNtfn]).
+		visit(func(h OnPTInviteAcceptedNtfn) { h(user, gc) })
+}
+
+func (nmgr *NotificationManager) notifyOnPTA(user *RemoteUser, gcm rpc.RMPokerTableAction, ts time.Time) {
+	nmgr.handlers[onPTANtfnType].(*handlersFor[OnPTANtfn]).
+		visit(func(h OnPTANtfn) { h(user, gcm, ts) })
+}
+
+func (nmgr *NotificationManager) notifyOnPTStarted(user *RemoteUser, gcm rpc.RMPokerTableStart, ts time.Time) {
+	nmgr.handlers[onPTSNtfnType].(*handlersFor[OnPTSNtfn]).
+		visit(func(h OnPTSNtfn) { h(user, gcm, ts) })
+}
+
+func (nmgr *NotificationManager) notifyOnPTProgressed(user *RemoteUser, ptg rpc.RMPokerGameProgressed, ts time.Time) {
+	nmgr.handlers[onPTProgressedNtfnType].(*handlersFor[OnPTProgressedNtfn]).
+		visit(func(h OnPTProgressedNtfn) { h(user, ptg, ts) })
+}
+
+func (nmgr *NotificationManager) notifyOnPTAction(user *RemoteUser, ptg rpc.RMPokerTableAction, ts time.Time) {
+	nmgr.handlers[onPTActionNtfnType].(*handlersFor[OnPTActionNtfn]).
+		visit(func(h OnPTActionNtfn) { h(user, ptg, ts) })
+}
+
 func NewNotificationManager() *NotificationManager {
 	return &NotificationManager{
 		handlers: map[string]handlersRegistry{
@@ -628,6 +711,14 @@ func NewNotificationManager() *NotificationManager {
 			onGCUserPartedNtfnType:     &handlersFor[OnGCUserPartedNtfn]{},
 			onGCKilledNtfnType:         &handlersFor[OnGCKilledNtfn]{},
 			onGCAdminsChangedNtfnType:  &handlersFor[OnGCAdminsChangedNtfn]{},
+
+			onInvitedToPTNtfnType:      &handlersFor[OnInvitedToPTNtfn]{},
+			onPTInviteAcceptedNtfnType: &handlersFor[OnPTInviteAcceptedNtfn]{},
+			onJoinedPTNtfnType:         &handlersFor[OnJoinedPTNtfn]{},
+			onPTANtfnType:              &handlersFor[OnPTANtfn]{},
+			onPTSNtfnType:              &handlersFor[OnPTSNtfn]{},
+			onPTProgressedNtfnType:     &handlersFor[OnPTProgressedNtfn]{},
+			onPTActionNtfnType:         &handlersFor[OnPTActionNtfn]{},
 
 			onKXSearchCompletedNtfnType:       &handlersFor[OnKXSearchCompleted]{},
 			onInvoiceGenFailedNtfnType:        &handlersFor[OnInvoiceGenFailedNtfn]{},
