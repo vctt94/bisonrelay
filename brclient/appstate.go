@@ -1478,16 +1478,16 @@ func (as *appState) act(cw *chatWindow, msg string) {
 	}
 	if strings.HasPrefix(msg, "bet") {
 		_, betSize := popNArgs(msg, 1)
-		chips, err := strconv.Atoi(betSize)
+		chips, err := strconv.ParseFloat(betSize, 8)
 		if err != nil {
 			as.cwHelpMsg("Invalid bet amount: %v", err)
 			return
 		}
 
-		game.Players[game.CurrentPlayer].Chips -= chips
+		// game.Players[game.CurrentPlayer].Chips -= chips
 		game.Pot += chips
 		game.Players[game.CurrentPlayer].HasActed = true
-		m = fmt.Sprintf("%s has bet %d chips\n", nick, chips)
+		m = fmt.Sprintf("%s has bet %f chips\n", nick, chips)
 	}
 	if strings.HasPrefix(msg, "check") {
 		game.Players[game.CurrentPlayer].HasActed = true
@@ -1538,10 +1538,8 @@ func (as *appState) progressPokerGame(cw *chatWindow) {
 	cw.pokerGame.ProgressPokerGame()
 	if cw.pokerGame.CurrentStage != oldCurrentStage {
 		cw.newInternalMsg("Current Stage: %s", cw.pokerGame.CurrentStage)
-		currentPlayer := cw.pokerGame.Players[cw.pokerGame.CurrentPlayer]
-		// fmt.Printf("currentPlayer: %+v\n\n", currentPlayer)
-
-		cw.newInternalMsg("Current Player: %s", currentPlayer.Nick)
+		cw.newInternalMsg("Pot Value: %f", cw.pokerGame.Pot)
+		cw.newInternalMsg("Current Player: %s", cw.pokerGame.Players[cw.pokerGame.CurrentPlayer].Nick)
 		cw.newInternalMsg("Community Cards: %v", cw.pokerGame.CommunityCards)
 	}
 
@@ -1562,7 +1560,8 @@ func (as *appState) progressPokerGame(cw *chatWindow) {
 		SB:             cw.pokerGame.SB,
 		Deck:           cw.pokerGame.Deck,
 		// the bot client responsible to managing the game
-		Bot: cw.pokerGame.Bot,
+		Bot:    cw.pokerGame.Bot,
+		Winner: cw.pokerGame.Winner,
 	}
 	p := rpc.RMPokerGameProgressed{
 		PokerGame: g,
@@ -1588,40 +1587,26 @@ func (as *appState) start(cw *chatWindow) {
 		as.cwHelpMsg("Unable to get members of PT %q: %v",
 			cw.alias, err)
 	}
-
 	n := len(pt.Members)
 	players := make([]rpc.Player, n)
 	for i, member := range pt.Members {
 		players[i] = rpc.Player{
 			ID: member,
-			// Nick:     how to get pt member Alias?
+			// Nick:   how to get pt member Alias?
 			Hand:     []rpc.Card{},
 			IsActive: true,
 			HasActed: false,
 		}
 	}
-	dealerPosition := 0
-	smallBlindPosition := (dealerPosition - 1 + n) % n
-	bigBlindPosition := (smallBlindPosition - 1 + n) % n
-	// currentPlayer := (bigBlindPosition - 1 + n) % n
-	// as we start the current stage on the draw, the first player to receive cards
-	// is the small blind. In others stages, the first player to act is the one
-	// after the big blind.
-	currentPlayer := smallBlindPosition
 
-	game := &PokerGame{
-		CurrentStage:   "draw",
-		Pot:            0,
-		DealerPosition: dealerPosition,
-		CurrentPlayer:  currentPlayer,
-		SmallBlind:     smallBlindPosition,
-		BigBlind:       bigBlindPosition,
-		// bigBlind:
-		// smallBlind:
-		BB: 0.01,
-		SB: 0.005,
+	// XXX Add bot uid into brclient.conf
+	botId, err := as.c.UIDByNick("fe91d707fd07877aaf9f43114b3a900714331bec7e7447e62edf93fce53f753f")
+	if err != nil {
+		as.cwHelpMsg("Unable to get bot of PT %q: %v", botId, err)
+		return
 	}
-	game.ShuffleDeck()
+
+	game := Start(players, botId, 0, 0.005, 0.01)
 	cw.pokerGame = game
 
 	p := rpc.RMPokerTableStart{
@@ -1633,13 +1618,13 @@ func (as *appState) start(cw *chatWindow) {
 			Pot:            game.Pot,
 			CurrentPlayer:  game.CurrentPlayer,
 			DealerPosition: game.DealerPosition,
-			SmallBlind:     smallBlindPosition,
-			BigBlind:       bigBlindPosition,
-
-			BB:      0.01,
-			SB:      0.01,
-			Deck:    game.Deck,
-			Players: players,
+			SmallBlind:     game.SmallBlind,
+			BigBlind:       game.BigBlind,
+			BB:             game.BB,
+			SB:             game.SB,
+			Deck:           game.Deck,
+			Players:        game.Players,
+			Bot:            game.Bot,
 		},
 	}
 	err = as.c.PTStart(cw.gc, p, progrChan)
@@ -2986,10 +2971,6 @@ func newAppState(sendMsg func(tea.Msg), lndLogLines *sloglinesbuffer.Buffer,
 		as.chatWindowsMtx.Unlock()
 
 		if cw.pokerGame.Players[cw.pokerGame.CurrentPlayer].ID == as.c.PublicID() {
-			// start drawing cards
-			me.Hand = []rpc.Card{cw.pokerGame.Draw(), cw.pokerGame.Draw()}
-			cw.newInternalMsg("my hand: %+v\n", me.Hand)
-
 			as.progressPokerGame(cw)
 		}
 
@@ -3014,8 +2995,8 @@ func newAppState(sendMsg func(tea.Msg), lndLogLines *sloglinesbuffer.Buffer,
 		as.chatWindowsMtx.Lock()
 		if cw.pokerGame != nil && cw.pokerGame.CurrentStage != msg.PokerGame.CurrentStage {
 			cw.newInternalMsg("Current Stage: %s", msg.PokerGame.CurrentStage)
-			currentPlayer := msg.PokerGame.Players[msg.PokerGame.CurrentPlayer]
-			cw.newInternalMsg("Current Player: %s", currentPlayer.Nick)
+			cw.newInternalMsg("Pot Value: %f", msg.PokerGame.Pot)
+			cw.newInternalMsg("Current Player: %s", msg.PokerGame.Players[msg.PokerGame.CurrentPlayer].Nick)
 			cw.newInternalMsg("Community Cards: %v", msg.PokerGame.CommunityCards)
 		}
 		cw.pokerGame = &PokerGame{
@@ -3032,18 +3013,44 @@ func newAppState(sendMsg func(tea.Msg), lndLogLines *sloglinesbuffer.Buffer,
 			CurrentStage:  msg.PokerGame.CurrentStage,
 			CurrentPlayer: msg.PokerGame.CurrentPlayer,
 			Bot:           msg.PokerGame.Bot,
+			Winner:        msg.PokerGame.Winner,
 		}
 		as.chatWindowsMtx.Unlock()
 
-		if cw.pokerGame.CurrentStage == "draw" {
+		switch cw.pokerGame.CurrentStage {
+		case Draw:
 			if cw.pokerGame.Players[cw.pokerGame.CurrentPlayer].ID == as.c.PublicID() {
+				// pay blinds on draw
 				me := findPlayerByID(cw.pokerGame.Players, as.c.PublicID())
+				if cw.pokerGame.Players[cw.pokerGame.SmallBlind].ID == as.c.PublicID() {
+					cwSB := as.findOrNewChatWindow(cw.pokerGame.Bot, cw.pokerGame.Players[cw.pokerGame.SmallBlind].Nick)
+					go as.payTip(cwSB, cw.pokerGame.SB)
+					cw.pokerGame.Pot += cw.pokerGame.SB
+
+					as.cwHelpMsg("SB of %f paid", cw.pokerGame.SB)
+				}
+				if cw.pokerGame.Players[cw.pokerGame.BigBlind].ID == as.c.PublicID() {
+					cwBB := as.findOrNewChatWindow(cw.pokerGame.Bot, cw.pokerGame.Players[cw.pokerGame.BigBlind].Nick)
+					go as.payTip(cwBB, cw.pokerGame.BB)
+					cw.pokerGame.Pot += cw.pokerGame.BB
+
+					as.cwHelpMsg("BB of %f paid", cw.pokerGame.BB)
+				}
 
 				me.Hand = []rpc.Card{cw.pokerGame.Draw(), cw.pokerGame.Draw()}
 				cw.pokerGame.Players[cw.pokerGame.CurrentPlayer].HasActed = true
 				cw.newInternalMsg("my hand: %v", me.Hand)
 				as.progressPokerGame(cw)
 			}
+		case Showdown:
+			// if bot, we pay the winner on showdown
+			if as.c.PublicID() == cw.pokerGame.Bot {
+				cwWinner := as.findOrNewChatWindow(cw.pokerGame.Winner, cw.pokerGame.Players[cw.pokerGame.SmallBlind].Nick)
+				go as.payTip(cwWinner, cw.pokerGame.Pot)
+
+				as.cwHelpMsg("Winner Player: %s", cw.pokerGame.Winner)
+			}
+
 		}
 
 		go func() {
@@ -3059,8 +3066,6 @@ func newAppState(sendMsg func(tea.Msg), lndLogLines *sloglinesbuffer.Buffer,
 		as.inboundMsgsMtx.Lock()
 		as.inboundMsgs.PushBack(inmsg)
 		as.inboundMsgsMtx.Unlock()
-		cw := as.findOrNewPTWindow(msg.ID)
-		cw.newInternalMsg("poker game action, from: %s", user.Nick())
 
 		go func() {
 			select {

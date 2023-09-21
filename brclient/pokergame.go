@@ -9,33 +9,129 @@ import (
 
 	"github.com/companyzero/bisonrelay/clientrpc/types"
 	"github.com/companyzero/bisonrelay/rpc"
+	"github.com/companyzero/bisonrelay/zkidentity"
 )
 
 var (
-	suits  = []string{"Hearts", "Diamonds", "Clubs", "Spades"}
+	suits  = []string{"♥ Hearts", "♦ Diamonds", "♣ Clubs", "♠ Spades"}
 	values = []string{"2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"}
+)
+
+const (
+	Draw     = "draw"
+	PreFlop  = "pre-flop"
+	Flop     = "flop"
+	Turn     = "turn"
+	River    = "river"
+	Showdown = "showdown"
 )
 
 type PokerGame struct {
 	Players        []rpc.Player
 	CommunityCards []rpc.Card
-	Pot            int
 	CurrentStage   string
 	DealerPosition int
 	BigBlind       int
 	SmallBlind     int
 	Deck           []rpc.Card
+	Pot            float64
 	BB             float64
 	SB             float64
-	Button         *rpc.Player
 	// CurrentPlayer represents an index of the Players array for the current
 	// player to play at the current stage.
 	CurrentPlayer int
-	Bot           string
+	Winner        zkidentity.ShortID
+	Bot           zkidentity.ShortID
 }
 
 type Deck struct {
 	Cards []rpc.Card
+}
+
+// Helper function to get the next active position, excluding the bot.
+func nextActivePosition(pos int, players []rpc.Player, botId zkidentity.ShortID) int {
+	for {
+		pos = (pos + 1) % len(players)
+		if players[pos].IsActive && players[pos].ID != botId {
+			break
+		}
+	}
+	return pos
+}
+
+func Start(players []rpc.Player, botId zkidentity.ShortID, dealerPosition int, sb, bb float64) *PokerGame {
+	// Set bot as not active.
+	for i := range players {
+		if players[i].ID == botId {
+			players[i].IsActive = false
+			break
+		}
+	}
+
+	smallBlindPosition := nextActivePosition(dealerPosition, players, botId)
+	bigBlindPosition := nextActivePosition(smallBlindPosition, players, botId)
+	// currentPlayer := nextActivePosition(smallBlindPosition, players, botId)
+	// as we start the current stage on the draw, the first player to receive cards
+	// is the small blind. In others stages, the first player to act is the one
+	// after the big blind.
+	currentPlayer := smallBlindPosition
+
+	game := &PokerGame{
+		Bot:            botId,
+		CurrentStage:   Draw,
+		Pot:            0,
+		DealerPosition: dealerPosition,
+		CurrentPlayer:  currentPlayer,
+		SmallBlind:     smallBlindPosition,
+		BigBlind:       bigBlindPosition,
+		BB:             bb,
+		SB:             sb,
+		Players:        players,
+	}
+	game.ShuffleDeck()
+
+	return game
+}
+
+func (g *PokerGame) moveToNextPlayer() {
+	g.CurrentPlayer = nextActivePosition(g.CurrentPlayer, g.Players, g.Bot)
+}
+
+func (g *PokerGame) ProgressPokerGame() {
+	if g.AllPlayersActed() {
+		switch g.CurrentStage {
+		case Draw:
+			g.CurrentStage = PreFlop
+			g.CurrentPlayer = nextActivePosition(g.BigBlind, g.Players, g.Bot)
+			g.ResetPlayerActions()
+		case PreFlop:
+			g.Flop()
+			g.CurrentStage = Flop
+			g.CurrentPlayer = nextActivePosition(g.BigBlind, g.Players, g.Bot)
+			g.ResetPlayerActions()
+		case Flop:
+			g.Turn()
+			g.CurrentStage = Turn
+			g.CurrentPlayer = nextActivePosition(g.BigBlind, g.Players, g.Bot)
+			g.ResetPlayerActions()
+		case Turn:
+			g.River()
+			g.CurrentStage = River
+			g.CurrentPlayer = nextActivePosition(g.BigBlind, g.Players, g.Bot)
+			g.ResetPlayerActions()
+		case River:
+			g.Showdown()
+			g.CurrentStage = Showdown
+			// XXX
+			// g.CurrentPlayer after showdown needs to progress blinds and button
+		case Showdown:
+			g.DetermineWinner()
+			g.DistributePot()
+			// g.ResetPokerGame()
+		}
+	} else {
+		g.moveToNextPlayer()
+	}
 }
 
 func (g *PokerGame) Draw() rpc.Card {
@@ -95,25 +191,25 @@ func (g *PokerGame) ProgressBlinds(ctx context.Context, payment types.PaymentsSe
 	// bigBlindPosition := g.DealerPosition
 
 	// Pay the small blind
-	paymentReq := &types.TipUserRequest{
-		DcrAmount:   g.SB,
-		User:        g.Bot,
-		MaxAttempts: 3,
-	}
-	fmt.Printf("paymentReq: %+v\n\n", paymentReq)
-	paymentResp := &types.TipUserResponse{}
-	err := payment.TipUser(ctx, paymentReq, paymentResp)
-	if err != nil {
-		return err
-	}
+	// paymentReq := &types.TipUserRequest{
+	// 	DcrAmount:   g.SB,
+	// 	User:        g.Bot,
+	// 	MaxAttempts: 3,
+	// }
+	// fmt.Printf("paymentReq: %+v\n\n", paymentReq)
+	// paymentResp := &types.TipUserResponse{}
+	// err := payment.TipUser(ctx, paymentReq, paymentResp)
+	// if err != nil {
+	// 	return err
+	// }
 
-	fmt.Printf("paymentResp: %+v\n\n", paymentResp)
-	// Pay the big blind
-	paymentReq.DcrAmount = g.BB
-	payment.TipUser(ctx, paymentReq, paymentResp)
-	if err != nil {
-		return err
-	}
+	// fmt.Printf("paymentResp: %+v\n\n", paymentResp)
+	// // Pay the big blind
+	// paymentReq.DcrAmount = g.BB
+	// payment.TipUser(ctx, paymentReq, paymentResp)
+	// if err != nil {
+	// 	return err
+	// }
 
 	return nil
 }
@@ -124,6 +220,9 @@ func (g *PokerGame) DetermineWinner() rpc.Player {
 	highestCardValue := 0
 	winner := g.Players[0]
 	for _, player := range g.Players {
+		if !player.IsActive {
+			continue
+		}
 		for _, card := range append(player.Hand, g.CommunityCards...) {
 			value := card.Value
 			if value == "A" {
@@ -148,9 +247,8 @@ func (g *PokerGame) DetermineWinner() rpc.Player {
 }
 
 func (g *PokerGame) DistributePot() {
-	player := g.DetermineWinner()
-	player.Chips += g.Pot
-	g.Pot = 0
+	g.Winner = g.DetermineWinner().ID
+	// player.Chips += g.Pot
 }
 
 func (g *PokerGame) ResetPokerGame() {
@@ -170,55 +268,20 @@ func (g *PokerGame) ResetPokerGame() {
 func (g *PokerGame) Showdown() {
 	// Show all players' hands
 	for _, player := range g.Players {
+		if !player.IsActive {
+			continue
+		}
 		fmt.Printf("%s's hand: %v and %v\n", player.Nick, player.Hand[0], player.Hand[1])
 	}
 	// Determine the winner, distribute the pot and reset the PokerGame
 	g.DistributePot()
-	g.ResetPokerGame()
 }
 
-func (g *PokerGame) ProgressPokerGame() {
-	n := len(g.Players)
-
-	if g.AllPlayersActed() {
-		g.CurrentPlayer = (g.BigBlind + 1) % n // start from the player after the big blind
-		switch g.CurrentStage {
-		case "draw":
-			g.CurrentStage = "pre-flop"
-			g.ResetPlayerActions()
-		case "pre-flop":
-			g.Flop()
-			g.CurrentStage = "flop"
-			g.ResetPlayerActions()
-		case "flop":
-			g.Turn()
-			g.CurrentStage = "turn"
-			g.ResetPlayerActions()
-		case "turn":
-			g.River()
-			g.CurrentStage = "river"
-			g.ResetPlayerActions()
-		case "river":
-			g.Showdown()
-			g.CurrentStage = "showdown"
-		case "showdown":
-			// Determine the winner and distribute the pot
-			g.DetermineWinner()
-			g.DistributePot()
-			g.ResetPokerGame()
-		}
-	} else {
-		// move current player
-		g.CurrentPlayer = (g.CurrentPlayer + 1) % n
-		// if we have reached the number of players, return to first player.
-		// this can happen when drawing cards.
-		if g.CurrentPlayer == len(g.Players) {
-			g.CurrentPlayer = 0
-		}
-	}
-}
 func (g *PokerGame) AllPlayersActed() bool {
 	for _, player := range g.Players {
+		if !player.IsActive {
+			continue
+		}
 		if !player.HasActed {
 			return false
 		}

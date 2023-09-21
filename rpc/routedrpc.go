@@ -912,16 +912,17 @@ type PokerGame struct {
 	Players        []Player `json:"players"`
 	CommunityCards []Card   `json:"communitycards"`
 	CurrentStage   string   `json:"currentstage"`
-	Pot            int      `json:"pot"`
 	CurrentPlayer  int      `json:"currentplayer"`
 	DealerPosition int      `json:"dealerposition"`
 	BigBlind       int      `json:"bigblind"`
 	SmallBlind     int      `json:"smallblind"`
+	Pot            float64  `json:"pot"`
 	BB             float64  `json:"bb"`
 	SB             float64  `json:"sb"`
 	Deck           []Card   `json:"deck"`
 	// the bot client responsible to managing the game
-	Bot string `json:"bot"`
+	Bot    zkidentity.ShortID `json:"bot"`
+	Winner zkidentity.ShortID `json:"winner"`
 }
 
 type Player struct {
