@@ -109,6 +109,37 @@ func (c *chatServer) AckReceivedPM(ctx context.Context, req *types.AckRequest,
 	return c.pmStreams.ack(req.SequenceId)
 }
 
+// GCMemmbers gets members in a GC.
+func (c *chatServer) GCMemmbers(ctx context.Context, req *types.GCMRequest, res *types.GCMResponse) (*rpc.RMGroupList, error) {
+	gcid, err := c.c.GCIDByName(req.Gc)
+	if err != nil {
+		return nil, err
+	}
+
+	members, err := c.c.GetGC(gcid)
+	if err != nil {
+		return nil, err
+	}
+	return &members, nil
+}
+
+func (c *chatServer) Info(ctx context.Context, req *types.InfoRequest, res *types.InfoResponse) error {
+	if req.User != "" {
+		user, err := c.c.UserByNick(req.User)
+		if err != nil {
+			return err
+		}
+		res.Nick = user.Nick()
+		res.Identity = user.PublicIdentity().Identity.Bytes()
+		return nil
+	}
+
+	res.Identity = c.c.PublicID().Bytes()
+	res.Nick = c.c.LocalNick()
+
+	return nil
+}
+
 // GCM sends a message in a GC.
 func (c *chatServer) GCM(ctx context.Context, req *types.GCMRequest, res *types.GCMResponse) error {
 	gcid, err := c.c.GCIDByName(req.Gc)

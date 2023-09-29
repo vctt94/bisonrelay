@@ -136,6 +136,7 @@ type ChatServiceClient interface {
 	AcceptInvite(ctx context.Context, in *AcceptInviteRequest, out *AcceptInviteResponse) error
 	// SendFile sends a file to a user.
 	SendFile(ctx context.Context, in *SendFileRequest, out *SendFileResponse) error
+	Info(ctx context.Context, in *InfoRequest, out *InfoResponse) error
 }
 
 type client_ChatService struct {
@@ -227,6 +228,11 @@ func (c *client_ChatService) SendFile(ctx context.Context, in *SendFileRequest, 
 	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
 }
 
+func (c *client_ChatService) Info(ctx context.Context, in *InfoRequest, out *InfoResponse) error {
+	const method = "Info"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
 func NewChatServiceClient(c ClientConn) ChatServiceClient {
 	return &client_ChatService{c: c, defn: ChatServiceDefn()}
 }
@@ -264,6 +270,7 @@ type ChatServiceServer interface {
 	AcceptInvite(context.Context, *AcceptInviteRequest, *AcceptInviteResponse) error
 	// SendFile sends a file to a user.
 	SendFile(context.Context, *SendFileRequest, *SendFileResponse) error
+	Info(context.Context, *InfoRequest, *InfoResponse) error
 }
 
 type ChatService_PMStreamServer interface {
@@ -459,6 +466,21 @@ func ChatServiceDefn() ServiceDefn {
 				},
 				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
 					method := "ChatService.SendFile"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"Info": {
+				IsStreaming:  false,
+				NewRequest:   func() proto.Message { return new(InfoRequest) },
+				NewResponse:  func() proto.Message { return new(InfoResponse) },
+				RequestDefn:  func() protoreflect.MessageDescriptor { return new(InfoRequest).ProtoReflect().Descriptor() },
+				ResponseDefn: func() protoreflect.MessageDescriptor { return new(InfoResponse).ProtoReflect().Descriptor() },
+				Help:         "",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(ChatServiceServer).Info(ctx, request.(*InfoRequest), response.(*InfoResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "ChatService.Info"
 					return conn.Request(ctx, method, request, response)
 				},
 			},
@@ -1288,6 +1310,19 @@ func ResourcesServiceDefn() ServiceDefn {
 }
 
 var help_messages = map[string]map[string]string{
+	"InfoRequest": {
+		"@":    "",
+		"user": "user is the nick or hex-encoded ID of the user to get info. If null it gets info about self user",
+	},
+	"InfoResponse": {
+		"@":         "",
+		"nick":      "name is the name of the user.",
+		"sig_key":   "sig_key is the signature key used to authenticate messages from the user.",
+		"key":       "key is the NTRU public key of the user.",
+		"identity":  "identity is the public ID of the user.",
+		"digest":    "digest is a hash of the user's public information.",
+		"signature": "signature is a signature of the user's public information.",
+	},
 	"VersionRequest": {
 		"@": "",
 	},
@@ -1559,6 +1594,7 @@ var help_messages = map[string]map[string]string{
 		"attempt":       "attempt is the attempt number.",
 		"attempt_err":   "attempt_err is filled when the attempt to fetch an invoice or perform the payment for a received invoice failed.",
 		"will_retry":    "will_retry flags whether a new attempt to request an invoice and perform a payment will be done or if no more attempts will happen.",
+		"is_sending":    "is_sending checks if it is sending or receiving the tip.",
 	},
 	"ResourceRequestsStreamRequest": {
 		"@": "ResourceRequestsStreamRequest is the request for a stream to receive resource requests.",

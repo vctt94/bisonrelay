@@ -25,7 +25,8 @@ type PaymentsServerCfg struct {
 	// the request in a user-friendly way in the client UI or to block the
 	// request from propagating (by returning a non-nil error).
 
-	OnTipUser func(uid clientintf.UserID, dcrAmount float64) error
+	OnTipUser     func(uid clientintf.UserID, dcrAmount float64) error
+	OnReceivedTip func(uid clientintf.UserID, dcrAmount float64) error
 }
 
 type paymentsServer struct {
@@ -67,6 +68,23 @@ func (p *paymentsServer) tipProgressNtfnHandler(ru *client.RemoteUser, amtMAtoms
 		Attempt:      int32(attempt),
 		AttemptErr:   attemptErrMsg,
 		WillRetry:    willRetry,
+		IsSending:    true,
+	}
+	p.tipProgressStreams.send(ntfn)
+}
+
+func (p *paymentsServer) tipReceivedProgressNtfnHandler(ru *client.RemoteUser, amtMAtoms int64) {
+	ntfn := &types.TipProgressEvent{
+		Uid:          ru.ID().Bytes(),
+		Nick:         ru.Nick(),
+		AmountMatoms: amtMAtoms,
+		Completed:    true,
+	}
+	if p.cfg.OnReceivedTip != nil {
+		err := p.cfg.OnReceivedTip(ru.ID(), float64(amtMAtoms))
+		if err != nil {
+			return
+		}
 	}
 	p.tipProgressStreams.send(ntfn)
 }
@@ -78,6 +96,7 @@ func (p *paymentsServer) AckTipProgress(_ context.Context, req *types.AckRequest
 func (p *paymentsServer) registerOfflineMessageStorageHandlers() {
 	nmgr := p.c.NotificationManager()
 	nmgr.RegisterSync(client.OnTipAttemptProgressNtfn(p.tipProgressNtfnHandler))
+	nmgr.RegisterSync(client.OnTipReceivedNtfn(p.tipReceivedProgressNtfnHandler))
 }
 
 var _ types.PaymentsServiceServer = (*paymentsServer)(nil)

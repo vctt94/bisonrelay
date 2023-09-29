@@ -65,6 +65,8 @@ service ChatService {
 
   /* SendFile sends a file to a user. */
   rpc SendFile(SendFileRequest) returns (SendFileResponse);
+
+  rpc Info(InfoRequest) returns (InfoResponse);
 }
 
 /* GCService offers GC-related management operations. */
@@ -171,6 +173,28 @@ service ResourcesService {
 /******************************************************************************
   *                           Messages
   *****************************************************************************/
+
+message InfoRequest {
+  /* user is the nick or hex-encoded ID of the user to get info.
+     If null it gets info about self user
+  */
+  string user = 1;
+}
+
+message InfoResponse {
+  /* name is the name of the user. */
+  string nick = 1;
+  /* sig_key is the signature key used to authenticate messages from the user. */
+  bytes sig_key = 3;
+  /* key is the NTRU public key of the user. */
+  bytes key = 4;
+  /* identity is the public ID of the user. */
+  bytes identity = 5;
+  /* digest is a hash of the user's public information. */
+  bytes digest = 6;
+  /* signature is a signature of the user's public information. */
+  bytes signature = 7;
+}
 
 message VersionRequest {
 }
@@ -665,6 +689,9 @@ message TipProgressEvent{
   /* will_retry flags whether a new attempt to request an invoice and perform
      a payment will be done or if no more attempts will happen. */
   bool will_retry = 8;
+
+  // is_sending checks if it is sending or receiving the tip.
+  bool is_sending = 9;
 };
 
 /* ResourceRequestsStreamRequest is the request for a stream to receive resource
