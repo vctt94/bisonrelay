@@ -3,15 +3,17 @@ package main
 import (
 	"context"
 	"fmt"
+	"math"
 	"math/rand"
-	"strconv"
+	"strings"
 	"time"
 
+	"github.com/chehsunliu/poker"
 	"github.com/companyzero/bisonrelay/clientrpc/types"
 )
 
 var (
-	suits  = []string{"♥ Hearts", "♦ Diamonds", "♣ Clubs", "♠ Spades"}
+	suits  = []string{"Hearts ♥", "Diamonds ♦", "Clubs ♣", "Spades ♠"}
 	values = []string{"2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"}
 )
 
@@ -30,14 +32,17 @@ type PokerGame struct {
 	CommunityCards []Card   `json:"communitycards"`
 	CurrentStage   string   `json:"currentstage"`
 	CurrentPlayer  int      `json:"currentplayer"`
-	Winner         int      `json:"winner"`
-	DealerPosition int      `json:"dealerposition"`
-	BigBlind       int      `json:"bigblind"`
-	SmallBlind     int      `json:"smallblind"`
-	Pot            float64  `json:"pot"`
-	BB             float64  `json:"bb"`
-	SB             float64  `json:"sb"`
-	Deck           []Card   `json:"deck"`
+	// Winner is an array with indexes of players. If a tie happens can have
+	// multiple winners.
+	Winner         []int   `json:"winner"`
+	DealerPosition int     `json:"dealerposition"`
+	BigBlind       int     `json:"bigblind"`
+	SmallBlind     int     `json:"smallblind"`
+	CurrentBet     float64 `json:"currentbet"`
+	Pot            float64 `json:"pot"`
+	BB             float64 `json:"bb"`
+	SB             float64 `json:"sb"`
+	Deck           []Card  `json:"deck"`
 	// the bot client responsible to managing the game
 	Bot string `json:"bot"`
 }
@@ -47,7 +52,8 @@ type Player struct {
 	Nick     string
 	Hand     []Card
 	Chips    int
-	Bet      int
+	Folded   bool
+	Bet      float64
 	IsActive bool
 	HasActed bool
 }
@@ -57,7 +63,18 @@ type Card struct {
 	Suit  string
 }
 
-// Helper function to get the next active position, excluding the bot.
+// Helper function to get the next active position that player hasn't folded.
+func nextActiveNotFoldedPosition(pos int, players []Player) int {
+	for {
+		pos = (pos + 1) % len(players)
+		if players[pos].IsActive && !players[pos].Folded {
+			break
+		}
+	}
+	return pos
+}
+
+// Helper function to get the next active position.
 func nextActivePosition(pos int, players []Player) int {
 	for {
 		pos = (pos + 1) % len(players)
@@ -94,31 +111,27 @@ func New(id string, players []Player, dealerPosition int, sb, bb float64) *Poker
 	return game
 }
 
-func (g *PokerGame) moveToNextPlayer() {
-	g.CurrentPlayer = nextActivePosition(g.CurrentPlayer, g.Players)
-}
-
 func (g *PokerGame) ProgressPokerGame() {
 	if g.AllPlayersActed() {
 		switch g.CurrentStage {
 		case Draw:
 			g.CurrentStage = PreFlop
-			g.CurrentPlayer = nextActivePosition(g.BigBlind, g.Players)
+			g.CurrentPlayer = nextActiveNotFoldedPosition(g.BigBlind, g.Players)
 			g.ResetPlayerActions()
 		case PreFlop:
 			g.Flop()
 			g.CurrentStage = Flop
-			g.CurrentPlayer = nextActivePosition(g.BigBlind, g.Players)
+			g.CurrentPlayer = nextActiveNotFoldedPosition(g.BigBlind, g.Players)
 			g.ResetPlayerActions()
 		case Flop:
 			g.Turn()
 			g.CurrentStage = Turn
-			g.CurrentPlayer = nextActivePosition(g.BigBlind, g.Players)
+			g.CurrentPlayer = nextActiveNotFoldedPosition(g.BigBlind, g.Players)
 			g.ResetPlayerActions()
 		case Turn:
 			g.River()
 			g.CurrentStage = River
-			g.CurrentPlayer = nextActivePosition(g.BigBlind, g.Players)
+			g.CurrentPlayer = nextActiveNotFoldedPosition(g.BigBlind, g.Players)
 			g.ResetPlayerActions()
 		case River:
 			g.Showdown()
@@ -131,7 +144,7 @@ func (g *PokerGame) ProgressPokerGame() {
 			// g.ResetPokerGame()
 		}
 	} else {
-		g.moveToNextPlayer()
+		g.CurrentPlayer = nextActiveNotFoldedPosition(g.CurrentPlayer, g.Players)
 	}
 }
 
@@ -181,74 +194,79 @@ func (g *PokerGame) River() {
 	g.Deck = g.Deck[1:]
 }
 
-func (g *PokerGame) ProgressDealer() {
-	g.DealerPosition = (g.DealerPosition + 1) % len(g.Players)
+func (g *PokerGame) Raise(value float64) {
+	g.CurrentBet = value
+	for i := range g.Players {
+		if g.Players[i].IsActive && !g.Players[i].Folded {
+			g.Players[i].HasActed = false
+		}
+	}
+	g.Players[g.CurrentPlayer].HasActed = true
+	g.Players[g.CurrentPlayer].Bet = value
+	g.Pot += value
+	g.ProgressPokerGame()
 }
 
-func (g *PokerGame) ProgressBlinds(ctx context.Context, payment types.PaymentsServiceClient) error {
-	g.ProgressDealer()
+func (g *PokerGame) Call() {
+	g.Players[g.CurrentPlayer].HasActed = true
+	g.Pot += g.CurrentBet
+	g.ProgressPokerGame()
+}
 
-	// smallBlindPosition := (g.DealerPosition + 1) % len(g.Players)
-	// bigBlindPosition := g.DealerPosition
-
-	// Pay the small blind
-	// paymentReq := &types.TipUserRequest{
-	// 	DcrAmount:   g.SB,
-	// 	User:        g.Bot,
-	// 	MaxAttempts: 3,
-	// }
-	// fmt.Printf("paymentReq: %+v\n\n", paymentReq)
-	// paymentResp := &types.TipUserResponse{}
-	// err := payment.TipUser(ctx, paymentReq, paymentResp)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// fmt.Printf("paymentResp: %+v\n\n", paymentResp)
-	// // Pay the big blind
-	// paymentReq.DcrAmount = g.BB
-	// payment.TipUser(ctx, paymentReq, paymentResp)
-	// if err != nil {
-	// 	return err
-	// }
+func (g *PokerGame) ProgressDealer(ctx context.Context, payment types.PaymentsServiceClient) error {
+	g.DealerPosition = nextActivePosition(g.DealerPosition, g.Players)
+	g.SmallBlind = nextActivePosition(g.DealerPosition, g.Players)
+	g.BigBlind = nextActivePosition(g.DealerPosition, g.Players)
 
 	return nil
 }
 
-func (g *PokerGame) DetermineWinner() int {
-	// This is a simplified version and assumes that the player with the highest card wins.
-	// In a real poker PokerGame, you would need to implement hand rankings and compare them.
-	highestCardValue := 0
-	winner := 0
+func (g *PokerGame) DetermineWinner() []int {
+	var winners []int
+	var bestRank int32 = math.MaxInt32 // Initialize to the maximum possible value
+
 	for i, player := range g.Players {
 		if !player.IsActive {
 			continue
 		}
+
+		// Convert player and community cards to poker.Card
+		var cards []poker.Card
 		for _, card := range append(player.Hand, g.CommunityCards...) {
-			value := card.Value
-			if value == "A" {
-				value = "14"
-			} else if value == "K" {
-				value = "13"
-			} else if value == "Q" {
-				value = "12"
-			} else if value == "J" {
-				value = "11"
-			}
-			intValue, _ := strconv.Atoi(value)
-			if intValue > highestCardValue {
-				highestCardValue = intValue
-				winner = i
-			}
+			// Convert to the string representation expected by the poker package
+			cardStr := card.Value + strings.ToLower(card.Suit[:1])
+			cards = append(cards, poker.NewCard(cardStr))
+		}
+
+		fmt.Printf("Hand: %v\ncards: %v\n", player.Hand, cards)
+		// Evaluate the hand
+		rank := poker.Evaluate(cards)
+		fmt.Printf("rank: %s\n\n", poker.RankString(rank))
+		if rank < bestRank {
+			fmt.Printf("Best Rank: %s player: %s\n", poker.RankString(rank), player.Nick)
+
+			bestRank = rank
+			winners = []int{i} // Reset winners list as we have a new best hand
+		} else if rank == bestRank {
+			winners = append(winners, i) // Add to winners list as hands are equal
 		}
 	}
 
-	return winner
+	g.Winner = winners
+	return winners
 }
 
 func (g *PokerGame) DistributePot() {
-	g.Winner = g.DetermineWinner()
-	// player.Chips += g.Pot
+	winners := g.DetermineWinner()
+	if len(winners) == 0 {
+		return // No active players
+	}
+
+	// Divide the pot equally among the winners in case of a tie
+	share := g.Pot / float64(len(winners))
+	for _, winner := range winners {
+		g.Players[winner].Chips += int(share)
+	}
 }
 
 func (g *PokerGame) ResetPokerGame() {
@@ -293,4 +311,8 @@ func (g *PokerGame) ResetPlayerActions() {
 	for i, _ := range g.Players {
 		g.Players[i].HasActed = false
 	}
+	for i := range g.Players {
+		g.Players[i].Bet = 0
+	}
+	g.CurrentBet = 0
 }

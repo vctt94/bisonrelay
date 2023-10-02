@@ -1,11 +1,3 @@
-// chat is an example showing how to use the clientrpc to send and receive
-// messages.
-//
-// Messages to send are read from stdin, one message per line, in a <user> <msg>
-// format.
-//
-// Messages received are sent to stdout, in the same format.
-
 package main
 
 import (
@@ -241,7 +233,7 @@ func gameLoop(ctx context.Context, chat types.ChatServiceClient, gcService types
 							Nick:     resp.Nick,
 							Hand:     []Card{},
 							IsActive: true,
-							HasActed: false,
+							HasActed: true,
 						}
 
 					}
@@ -262,7 +254,7 @@ func gameLoop(ctx context.Context, chat types.ChatServiceClient, gcService types
 						playerHandReq := &types.PMRequest{
 							User: players[i].ID,
 							Msg: &types.RMPrivateMessage{
-								Message: fmt.Sprintf("Hand: %+v\n"+
+								Message: fmt.Sprintf("Hand: %v\n"+
 									"___________________________________", players[i].Hand),
 							},
 						}
@@ -275,7 +267,7 @@ func gameLoop(ctx context.Context, chat types.ChatServiceClient, gcService types
 					}
 					gameMutex.Unlock()
 
-					botReply = fmt.Sprintf("\n|---------------\n"+
+					botReply = fmt.Sprintf("\n---------------\n"+
 						"Current Stage: %s\n"+
 						"Community Cards: %v\n"+
 						"Pot: %f\n"+
@@ -313,15 +305,17 @@ func gameLoop(ctx context.Context, chat types.ChatServiceClient, gcService types
 					game.Players[game.CurrentPlayer].HasActed = true
 					game.ProgressPokerGame()
 					if game.CurrentStage == Showdown {
-						botReply = fmt.Sprintf("\n|---------------\n"+
+						// XXX distribute pot
+						winner := game.Winner[0]
+						botReply = fmt.Sprintf("\n---------------\n"+
 							"Current Stage: %s\n"+
 							"Community Cards: %v\n"+
 							"Pot: %f\n"+
 							"Winner Player: %s\n"+
 							"---------------|\n",
-							game.CurrentStage, game.CommunityCards, game.Pot, game.Players[game.Winner].Nick)
+							game.CurrentStage, game.CommunityCards, game.Pot, game.Players[winner].Nick)
 						err = payment.TipUser(ctx, &types.TipUserRequest{
-							User:        game.Players[game.Winner].ID,
+							User:        game.Players[winner].ID,
 							DcrAmount:   game.Pot,
 							MaxAttempts: 1,
 						}, &types.TipUserResponse{})
@@ -330,7 +324,7 @@ func gameLoop(ctx context.Context, chat types.ChatServiceClient, gcService types
 							log.Warnf("Error while sending pot: %v", err)
 						}
 					} else {
-						botReply = fmt.Sprintf("\n|---------------\n"+
+						botReply = fmt.Sprintf("\n---------------\n"+
 							"Current Stage: %s\n"+
 							"Community Cards: %v\n"+
 							"Pot: %f\n"+
@@ -353,6 +347,7 @@ func gameLoop(ctx context.Context, chat types.ChatServiceClient, gcService types
 					return err
 				}
 			}
+
 		}
 	}
 }
