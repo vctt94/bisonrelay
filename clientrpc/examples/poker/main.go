@@ -67,34 +67,59 @@ func sendPaymentLoop(ctx context.Context, payment types.PaymentsServiceClient, c
 
 			ruid := tip.Uid
 			uid := hex.EncodeToString(ruid[:])
-			// if sending tip, ignore.
+
+			var botReply string
 			if tip.IsSending {
 				continue
 			}
-			var botReply string
 			if game != nil {
 				gameMutex.Lock()
-				if uid == game.Players[game.BigBlind].ID {
-					game.Players[game.BigBlind].HasActed = true
-					game.Pot += game.BB
-					botReply = "Big Blind Paid"
-				}
-				if uid == game.Players[game.SmallBlind].ID {
-					game.Players[game.SmallBlind].HasActed = true
-					game.Pot += game.SB
-					botReply = "Small Blind Paid"
-				}
-				// only progress if all players paid
-				if game.AllPlayersActed() {
-					game.ProgressPokerGame()
-					botReply += fmt.Sprintf("\n|---------------\n"+
-						"Current Stage: %s\n"+
-						"Community Cards: %v\n"+
-						"Pot: %f\n"+
-						"---------------|\n"+
-						"Current Player: %s\n",
+				if game.CurrentStage == Draw {
+					if uid == game.Players[game.BigBlind].ID {
+						game.Players[game.BigBlind].HasActed = true
+						game.Pot += game.BB
+						botReply = "Big Blind Paid"
+					}
+					if uid == game.Players[game.SmallBlind].ID {
+						game.Players[game.SmallBlind].HasActed = true
+						game.Pot += game.SB
+						botReply = "Small Blind Paid"
+					}
+					// only progress if all players paid
+					if game.AllPlayersActed() {
+						game.ProgressPokerGame()
+						botReply += fmt.Sprintf("\n|---------------\n"+
+							"Current Stage: %s\n"+
+							"Community Cards: %v\n"+
+							"Pot: %f\n"+
+							"---------------|\n"+
+							"Current Player: %s\n",
 
-						game.CurrentStage, game.CommunityCards, game.Pot, game.Players[game.CurrentPlayer].Nick)
+							game.CurrentStage, game.CommunityCards, game.Pot, game.Players[game.CurrentPlayer].Nick)
+					}
+				} else {
+					currentPlayer := game.Players[game.CurrentPlayer]
+					value := float64(tip.AmountMatoms)
+					if uid == currentPlayer.ID {
+						// Identify the action based on the tip amount and current bet
+						if value == game.CurrentBet {
+							// Call
+							game.Call()
+							botReply = fmt.Sprintf("Player %s called.", currentPlayer.Nick)
+						} else if value > game.CurrentBet {
+							if game.CurrentBet == 0 {
+								// Bet
+								game.Bet(value)
+								botReply = fmt.Sprintf("Player %s has bet %f. Current pot is %f", game.Players[game.CurrentPlayer].Nick, value, game.Pot)
+							} else {
+								// Raise
+								game.Raise(value)
+								botReply = fmt.Sprintf("Player %s raised to: %f", currentPlayer.Nick, game.CurrentBet)
+							}
+						} else {
+							botReply = "Invalid Bet Amount"
+						}
+					}
 				}
 				gameMutex.Unlock()
 			}
@@ -157,7 +182,7 @@ func gameLoop(ctx context.Context, chat types.ChatServiceClient, gcService types
 				continue
 			}
 
-			var msg, botReply, gcidStr, uid string
+			var msg, botReply, gcidstr, uid string
 			var resp *types.GetGCResponse
 			var err error
 			msg = escapeContent(gcm.Msg.Message)
@@ -165,11 +190,11 @@ func gameLoop(ctx context.Context, chat types.ChatServiceClient, gcService types
 			if err != nil {
 				return err
 			}
-			gcidStr = hex.EncodeToString((*gcid)[:])
+			gcidstr = hex.EncodeToString((*gcid)[:])
 			resp = &types.GetGCResponse{}
 			uid = hex.EncodeToString(gcm.Uid[:])
 
-			err = gcService.GetGC(ctx, &types.GetGCRequest{Gc: gcidStr}, resp)
+			err = gcService.GetGC(ctx, &types.GetGCRequest{Gc: gcidstr}, resp)
 			if err != nil {
 				log.Warnf("Error while listing gcs: %v", err)
 				continue
@@ -180,6 +205,7 @@ func gameLoop(ctx context.Context, chat types.ChatServiceClient, gcService types
 			}
 
 			// commands
+			// start
 			if strings.HasPrefix(msg, "!start") {
 				info := &types.InfoResponse{}
 				err := chat.Info(ctx, &types.InfoRequest{}, info)
@@ -189,165 +215,170 @@ func gameLoop(ctx context.Context, chat types.ChatServiceClient, gcService types
 				}
 				botId = hex.EncodeToString((info.Identity)[:])
 
-				if resp.Gc != nil {
-					n := len(resp.Gc.Members)
-					if n < 3 {
-						botReply = "minimum 2 players to start game"
-						req := &types.GCMRequest{
-							Gc:  gcidStr,
-							Msg: botReply,
-						}
-						var res types.GCMResponse
-						err = chat.GCM(ctx, req, &res)
-						if err != nil {
-							log.Warnf("not possible to chat.GCM: %s", err)
-							continue
+				n := len(resp.Gc.Members)
+				if n < 3 {
+					botReply = "minimum 2 players to start game"
+					err = sendMessage(ctx, chat, gcidstr, botReply)
+					if err != nil {
+						log.Warnf("not possible to send message: %s", err)
+						continue
+					}
+					continue
+				}
+				gameMutex.Lock()
+
+				players := make([]Player, n)
+				for i, member := range resp.Gc.Members {
+					mid, err := zkidentity.Byte2ID(member)
+					if err != nil {
+						return err
+					}
+					ruid := hex.EncodeToString((*mid)[:])
+					var resp types.InfoResponse
+					// deactivate bot
+					if ruid == botId {
+						players[i] = Player{
+							ID:       ruid,
+							IsActive: false,
 						}
 						continue
 					}
-					gameMutex.Lock()
-
-					players := make([]Player, n)
-					for i, member := range resp.Gc.Members {
-						mid, err := zkidentity.Byte2ID(member)
-						if err != nil {
-							return err
-						}
-						ruid := hex.EncodeToString((*mid)[:])
-						var resp types.InfoResponse
-						// deactivate bot
-						if ruid == botId {
-							players[i] = Player{
-								ID:       ruid,
-								IsActive: false,
-							}
-							continue
-						}
-						err = chat.Info(ctx, &types.InfoRequest{User: ruid}, &resp)
-						if err != nil {
-							log.Warnf("not possible to chat.Info: %s", err)
-							continue
-						}
-						players[i] = Player{
-							ID:       ruid,
-							Nick:     resp.Nick,
-							Hand:     []Card{},
-							IsActive: true,
-							HasActed: true,
-						}
-
+					err = chat.Info(ctx, &types.InfoRequest{User: ruid}, &resp)
+					if err != nil {
+						log.Warnf("not possible to chat.Info: %s", err)
+						continue
+					}
+					players[i] = Player{
+						ID:       ruid,
+						Nick:     resp.Nick,
+						Hand:     []Card{},
+						IsActive: true,
+						HasActed: false,
 					}
 
-					game = New(gcidStr, players, 0, 0.005, 0.01)
-					game.ShuffleDeck()
+				}
+				game = New(gcidstr, players, 0, 0.005, 0.01)
+				game.ShuffleDeck()
 
-					// blinds need to be paid
-					game.Players[game.BigBlind].HasActed = false
-					game.Players[game.SmallBlind].HasActed = false
+				// blinds need to be paid
+				game.Players[game.BigBlind].HasActed = false
+				game.Players[game.SmallBlind].HasActed = false
 
-					// draw cards
-					for i := range players {
-						if !players[i].IsActive {
-							continue
-						}
-						players[i].Hand = []Card{game.Draw(), game.Draw()}
-						playerHandReq := &types.PMRequest{
-							User: players[i].ID,
-							Msg: &types.RMPrivateMessage{
-								Message: fmt.Sprintf("Hand: %v\n"+
-									"___________________________________", players[i].Hand),
-							},
-						}
-						var playerHandRes types.PMResponse
-						err = chat.PM(ctx, playerHandReq, &playerHandRes)
-						if err != nil {
-							log.Warnf("Err: %v", err)
-							continue
-						}
+				// draw cards
+				for i := range players {
+					if !players[i].IsActive {
+						continue
 					}
-					gameMutex.Unlock()
-
-					botReply = fmt.Sprintf("\n---------------\n"+
-						"Current Stage: %s\n"+
-						"Community Cards: %v\n"+
-						"Pot: %f\n"+
-						"---------------|\n"+
-						fmt.Sprintf("Waiting for:\nBB: %f from %s\nSB: %f from %s\n", game.BB, game.Players[game.BigBlind].Nick, game.SB, game.Players[game.SmallBlind].Nick)+
-						"Current Player: %s\n",
-
-						game.CurrentStage, game.CommunityCards, game.Pot, game.Players[game.CurrentPlayer].Nick)
-
-					req := &types.GCMRequest{
-						Gc:  gcidStr,
-						Msg: botReply,
+					players[i].Hand = []Card{game.Draw(), game.Draw()}
+					playerHandReq := &types.PMRequest{
+						User: players[i].ID,
+						Msg: &types.RMPrivateMessage{
+							Message: fmt.Sprintf("Hand: %v\n"+
+								"___________________________________", players[i].Hand),
+						},
 					}
-					var res types.GCMResponse
-					err = chat.GCM(ctx, req, &res)
+					var playerHandRes types.PMResponse
+					err = chat.PM(ctx, playerHandReq, &playerHandRes)
 					if err != nil {
 						log.Warnf("Err: %v", err)
 						continue
 					}
 				}
-			}
-			if game == nil {
-				continue
-			}
+				gameMutex.Unlock()
 
-			// payment.AckTipProgress()
-			if strings.HasPrefix(msg, "!check") {
+				botReply = fmt.Sprintf("\n---------------\n"+
+					"Current Stage: %s\n"+
+					"Community Cards: %v\n"+
+					"Pot: %f\n"+
+					"---------------|\n"+
+					fmt.Sprintf("Waiting for:\nBB: %f from %s\nSB: %f from %s\n", game.BB, game.Players[game.BigBlind].Nick, game.SB, game.Players[game.SmallBlind].Nick)+
+					"Current Player: %s\n",
+
+					game.CurrentStage, game.CommunityCards, game.Pot, game.Players[game.CurrentPlayer].Nick)
+
 				if err != nil {
-					log.Warnf("Error while listing gcs: %v", err)
-				}
-				var botReply string
-				if uid == game.Players[game.CurrentPlayer].ID {
-					gameMutex.Lock()
-
-					game.Players[game.CurrentPlayer].HasActed = true
-					game.ProgressPokerGame()
-					if game.CurrentStage == Showdown {
-						// XXX distribute pot
-						winner := game.Winner[0]
-						botReply = fmt.Sprintf("\n---------------\n"+
-							"Current Stage: %s\n"+
-							"Community Cards: %v\n"+
-							"Pot: %f\n"+
-							"Winner Player: %s\n"+
-							"---------------|\n",
-							game.CurrentStage, game.CommunityCards, game.Pot, game.Players[winner].Nick)
-						err = payment.TipUser(ctx, &types.TipUserRequest{
-							User:        game.Players[winner].ID,
-							DcrAmount:   game.Pot,
-							MaxAttempts: 1,
-						}, &types.TipUserResponse{})
-
-						if err != nil {
-							log.Warnf("Error while sending pot: %v", err)
-						}
-					} else {
-						botReply = fmt.Sprintf("\n---------------\n"+
-							"Current Stage: %s\n"+
-							"Community Cards: %v\n"+
-							"Pot: %f\n"+
-							"Current Player: %s\n"+
-							"---------------|\n",
-							game.CurrentStage, game.CommunityCards, game.Pot, game.Players[game.CurrentPlayer].Nick)
-					}
-
-					gameMutex.Unlock()
-				} else {
-					botReply = "not player turn"
+					log.Warnf("Err: %v", err)
+					continue
 				}
 				req := &types.GCMRequest{
-					Gc:  gcidStr,
+					Gc:  gcidstr,
 					Msg: botReply,
 				}
 				var res types.GCMResponse
 				err = chat.GCM(ctx, req, &res)
 				if err != nil {
-					return err
+					log.Warnf("Err: %v", err)
+					continue
 				}
+				// game started can continue.
+				continue
 			}
 
+			// commands from here need the game started.
+			if game == nil {
+				continue
+			}
+
+			if game.Players[game.CurrentPlayer].ID != uid {
+				botReply = "Not your turn to play"
+				msg = ""
+			}
+			// check
+			if strings.HasPrefix(msg, "!check") {
+				gameMutex.Lock()
+				game.Players[game.CurrentPlayer].HasActed = true
+				game.ProgressPokerGame()
+				if game.CurrentStage == Showdown {
+					// XXX distribute pot
+					winner := game.Winner[0]
+					botReply = fmt.Sprintf("\n---------------\n"+
+						"Current Stage: %s\n"+
+						"Community Cards: %v\n"+
+						"Pot: %f\n"+
+						"Winner Player: %s\n"+
+						"---------------|\n",
+						game.CurrentStage, game.CommunityCards, game.Pot, game.Players[winner].Nick)
+					err = payment.TipUser(ctx, &types.TipUserRequest{
+						User:        game.Players[winner].ID,
+						DcrAmount:   game.Pot,
+						MaxAttempts: 1,
+					}, &types.TipUserResponse{})
+
+					if err != nil {
+						log.Warnf("Error while sending pot: %v", err)
+					}
+				} else {
+					botReply = fmt.Sprintf("\n---------------\n"+
+						"Current Stage: %s\n"+
+						"Community Cards: %v\n"+
+						"Pot: %f\n"+
+						"Current Player: %s\n"+
+						"---------------|\n",
+						game.CurrentStage, game.CommunityCards, game.Pot, game.Players[game.CurrentPlayer].Nick)
+				}
+				gameMutex.Unlock()
+			}
+
+			if strings.HasPrefix(msg, "!fold") {
+				gameMutex.Lock()
+				// Mark the player as folded
+				game.Players[game.CurrentPlayer].Folded = true
+				game.Players[game.CurrentPlayer].HasActed = true
+				game.ProgressPokerGame()
+				botReply = fmt.Sprintf("Player %s has folded", game.Players[game.CurrentPlayer].Nick)
+				gameMutex.Unlock()
+			}
+
+			req := &types.GCMRequest{
+				Gc:  gcidstr,
+				Msg: botReply,
+			}
+			var res types.GCMResponse
+			err = chat.GCM(ctx, req, &res)
+			if err != nil {
+				log.Warnf("Err: %v", err)
+				continue
+			}
 		}
 	}
 }

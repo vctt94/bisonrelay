@@ -207,6 +207,15 @@ func (g *PokerGame) Raise(value float64) {
 	g.ProgressPokerGame()
 }
 
+func (g *PokerGame) Bet(betAmount float64) {
+	// Update the player's bet and the game's current bet
+	g.Players[game.CurrentPlayer].Bet = betAmount
+	g.CurrentBet = betAmount
+	g.Pot += betAmount
+	g.Players[game.CurrentPlayer].HasActed = true
+	g.ProgressPokerGame()
+}
+
 func (g *PokerGame) Call() {
 	g.Players[g.CurrentPlayer].HasActed = true
 	g.Pot += g.CurrentBet
