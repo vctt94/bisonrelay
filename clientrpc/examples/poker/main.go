@@ -336,8 +336,9 @@ func gameLoop(ctx context.Context, chat types.ChatServiceClient, gcService types
 						"Community Cards: %v\n"+
 						"Pot: %f\n"+
 						"Winner Player: %s\n"+
+						"Winner Hand: %v\n"+
 						"---------------|\n",
-						game.CurrentStage, game.CommunityCards, game.Pot, game.Players[winner].Nick)
+						game.CurrentStage, game.CommunityCards, game.Pot, game.Players[winner].Nick, game.Players[winner].Hand)
 					err = payment.TipUser(ctx, &types.TipUserRequest{
 						User:        game.Players[winner].ID,
 						DcrAmount:   game.Pot,
