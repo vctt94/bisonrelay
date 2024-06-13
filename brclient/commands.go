@@ -3304,6 +3304,37 @@ var filterCommands = []tuicmd{
 	},
 }
 
+var pongCmds = []tuicmd{
+	{
+		cmd:   "init",
+		usage: "<nick or id>",
+		descr: "Initialize a new Pong game",
+		handler: func(args []string, as *appState) error {
+			if len(args) < 1 {
+				return usageError{msg: "Nick or ID cannot be empty"}
+			}
+
+			ru, err := as.c.UserByNick(args[0])
+			if err != nil {
+				return err
+			}
+
+			cw := as.findOrNewChatWindow(ru.ID(), ru.Nick())
+			as.initPong(cw)
+			return nil
+		},
+	}, {
+		cmd:   "ready",
+		descr: "Signal that the client is ready to play",
+		handler: func(args []string, as *appState) error {
+			// Replace this with actual readiness signal logic
+
+			as.signalReadyToPlay()
+			return nil
+		},
+	},
+}
+
 var myAvatarCmds = []tuicmd{
 	{
 		cmd:   "set",
@@ -4243,6 +4274,19 @@ var commands = []tuicmd{
 			as.sendMsg(requestShutdown{})
 			return nil
 		},
+	},
+	{
+		cmd:           "pong",
+		usableOffline: true,
+		descr:         "Pong game commands",
+		sub:           pongCmds,
+		completer: func(args []string, arg string, as *appState) []string {
+			if len(args) == 0 {
+				return cmdCompleter(pongCmds, arg, false)
+			}
+			return nil
+		},
+		handler: subcmdNeededHandler,
 	},
 }
 

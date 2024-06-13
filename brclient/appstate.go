@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -51,6 +53,7 @@ import (
 	lpclient "github.com/decred/dcrlnlpd/client"
 	"github.com/decred/slog"
 	"github.com/puzpuzpuz/xsync/v2"
+	"github.com/vctt94/pong-bisonrelay/pongrpc/grpc/pong"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 	"golang.org/x/text/collate"
@@ -104,6 +107,7 @@ type appState struct {
 	isRestore   bool
 	rpcServer   *rpcserver.Server
 
+	pongClient *client.PongClient
 	lnPC       *client.DcrlnPaymentClient
 	lnRPC      lnrpc.LightningClient
 	lnWallet   walletrpc.WalletKitClient
@@ -2656,6 +2660,74 @@ func (as *appState) handleCmd(rawText string, args []string) {
 	}
 }
 
+func (as *appState) initPong(cw *chatWindow) {
+	clientId := hex.EncodeToString(as.c.PublicID().Bytes())
+	req := &pong.GameStartedStreamRequest{
+		ClientId: clientId,
+	}
+	err := as.pongClient.Init(as.ctx, req, func(notifier pong.PongGame_InitClient) {
+		as.listenForAppNtfn(notifier)
+	})
+	if err != nil {
+		as.cwHelpMsg("Unable to start pong %q: %v",
+			cw.alias, err)
+	}
+}
+
+func (as *appState) signalReadyToPlay() {
+	err := as.pongClient.SignalReady(as.ctx, &pong.SignalReadyRequest{}, func(stream pong.PongGame_SignalReadyClient) {
+		as.listenForAppUpdates(stream)
+		as.cwHelpMsg("Client ready to play pong!")
+	})
+	if err != nil {
+		as.cwHelpMsg("Unable to start pong: %v", err)
+	}
+}
+
+func (as *appState) listenForAppUpdates(stream pong.PongGame_SignalReadyClient) error {
+	var err error
+	go func() {
+		for {
+			update, err := stream.Recv()
+			fmt.Printf("update: %+v\n", update)
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			if err != nil {
+				return
+			}
+			// pc.updatesCh <- GameUpdateMsg(update)
+		}
+	}()
+	if err != nil {
+		return fmt.Errorf("error initializing stream: %w", err)
+	}
+
+	log.Println("Stream initialized successfully")
+	return nil
+}
+
+func (as *appState) listenForAppNtfn(notifier pong.PongGame_InitClient) error {
+	var err error
+	go func() {
+		for {
+			started, err := notifier.Recv()
+			fmt.Printf("started:%+v\n", started)
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			if err != nil {
+				return
+			}
+
+		}
+	}()
+	if err != nil {
+		return fmt.Errorf("error initializing stream: %w", err)
+	}
+	return nil
+}
+
 // newAppState initializes the main app state.
 func newAppState(sendMsg func(tea.Msg), lndLogLines *sloglinesbuffer.Buffer,
 	isRestore bool, args *config) (*appState, error) {
@@ -3862,6 +3934,14 @@ func newAppState(sendMsg func(tea.Msg), lndLogLines *sloglinesbuffer.Buffer,
 
 		OnionEnable: args.ProxyAddr != "",
 	})
+	pongcfg := &client.PongClientCfg{
+		Address: "localhost:50051",
+		Log:     logBknd.logger("PONG"),
+	}
+	pongClient, err := client.NewPongClient(ctx, pongcfg)
+	if err != nil {
+		return nil, fmt.Errorf("unable to initialize pong game: %v", err)
+	}
 	go r.Run(ctx)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -3875,6 +3955,7 @@ func newAppState(sendMsg func(tea.Msg), lndLogLines *sloglinesbuffer.Buffer,
 		log:         logBknd.logger("ZTUI"),
 		lndLogLines: lndLogLines,
 		serverAddr:  args.ServerAddr,
+		pongClient:  pongClient,
 		lnPC:        lnPC,
 		lnRPC:       lnRPC,
 		lnWallet:    lnWallet,
