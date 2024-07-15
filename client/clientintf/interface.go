@@ -10,10 +10,13 @@ import (
 	"net"
 	"time"
 
+	types "github.com/companyzero/bisonrelay/clientplugin/grpctypes"
 	"github.com/companyzero/bisonrelay/rpc"
 	"github.com/companyzero/bisonrelay/zkidentity"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v4"
+	"github.com/decred/slog"
+	"google.golang.org/grpc"
 )
 
 // ID is a 32-byte global ID. This is used as an alias for all 32-byte arrays
@@ -35,6 +38,7 @@ func RandomID() ID {
 type UserID = ID
 type PostID = ID
 type RawRVID = ID
+type PluginID = ID
 
 // Conn represents the required functions for a remote connection to a server.
 type Conn interface {
@@ -216,3 +220,62 @@ var (
 	ErrOnboardNoFunds            = errors.New("onboarding invite does not have any funds")
 	ErrRetriablePayment          = errors.New("retriable payment error")
 )
+
+type Plugin_InitClient interface {
+	grpc.ClientStream
+}
+
+type PluginClient interface {
+	types.PluginService_InitServer
+	Logger() slog.Logger
+	RegisterPlugin(plugin PluginClient)
+	InitPlugin(ctx context.Context, req *types.PluginStartStreamRequest) (PluginClient, error)
+	ShutdownPlugin(ctx context.Context) error
+	ID() zkidentity.FixedSizeDigest
+	Name() string
+	Version() string
+	Config() map[string]interface{}
+	// Add other methods that plugins might need to call on the client.
+}
+
+// PluginManager manages the lifecycle and execution of plugins.
+type PluginManager struct {
+	plugins map[zkidentity.ShortID]PluginClient
+}
+
+// NewPluginManager creates a new PluginManager.
+func NewPluginManager() *PluginManager {
+	return &PluginManager{
+		plugins: make(map[zkidentity.ShortID]PluginClient),
+	}
+}
+
+// RegisterPlugin registers a new plugin with the manager.
+// func (pm *PluginManager) RegisterPlugin(ctx context.Context, plugin PluginClient) (PluginClient, error) {
+// 	id := plugin.ID()
+// 	pm.plugins[plugin.ID()] = plugin
+// 	plugin, err := pm.GetPlugin(id)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	return plugin.InitPlugin(ctx, pl)
+// }
+
+// GetPlugin retrieves a plugin by name.
+func (pm *PluginManager) GetPlugin(name zkidentity.ShortID) (PluginClient, error) {
+	plugin, exists := pm.plugins[name]
+	if !exists {
+		return nil, fmt.Errorf("plugin %s not found", name)
+	}
+	return plugin, nil
+}
+
+// Close cleans up all registered plugins.
+func (pm *PluginManager) Shutdown(ctx context.Context) error {
+	for _, plugin := range pm.plugins {
+		if err := plugin.ShutdownPlugin(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
+}

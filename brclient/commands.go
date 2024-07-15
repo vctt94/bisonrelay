@@ -3365,6 +3365,65 @@ var myAvatarCmds = []tuicmd{
 	},
 }
 
+var pluginCmds = []tuicmd{
+	{
+		cmd:   "init",
+		usage: "<nick or id>",
+		descr: "Initialize a new plugin",
+		handler: func(args []string, as *appState) error {
+			if len(args) < 1 {
+				return usageError{msg: "Nick or ID cannot be empty"}
+			}
+			if len(args) < 2 {
+				return usageError{msg: "Plugin Address cannot be empty"}
+			}
+
+			ru, err := as.c.UserByNick(args[0])
+			if err != nil {
+				return err
+			}
+
+			cw := as.findOrNewChatWindow(ru.ID(), ru.Nick())
+			as.initPlugin(cw, ru.ID(), args[1])
+			return nil
+		},
+	}, {
+		cmd:   "version",
+		descr: "Get plugin's version",
+		handler: func(args []string, as *appState) error {
+			if len(args) < 1 {
+				return usageError{msg: "Nick or ID cannot be empty"}
+			}
+
+			ru, err := as.c.UserByNick(args[0])
+			if err != nil {
+				return err
+			}
+			cw := as.findOrNewChatWindow(ru.ID(), ru.Nick())
+			as.pluginVersion(cw, ru.ID())
+			// as.initPlugin(cw)
+			return nil
+		},
+	}, {
+		cmd:   "action",
+		descr: "Calls a plugin action",
+		handler: func(args []string, as *appState) error {
+			if len(args) < 1 {
+				return usageError{msg: "Nick or ID cannot be empty"}
+			}
+
+			ru, err := as.c.UserByNick(args[0])
+			if err != nil {
+				return err
+			}
+			cw := as.findOrNewChatWindow(ru.ID(), ru.Nick())
+			as.pluginAction(cw, ru.ID())
+			// as.initPlugin(cw)
+			return nil
+		},
+	},
+}
+
 var commands = []tuicmd{
 	{
 		cmd:           "backup",
@@ -4243,6 +4302,19 @@ var commands = []tuicmd{
 			as.sendMsg(requestShutdown{})
 			return nil
 		},
+	},
+	{
+		cmd:           "plugin",
+		usableOffline: true,
+		descr:         "Plugin Commands",
+		sub:           pluginCmds,
+		completer: func(args []string, arg string, as *appState) []string {
+			if len(args) == 0 {
+				return cmdCompleter(pluginCmds, arg, false)
+			}
+			return nil
+		},
+		handler: subcmdNeededHandler,
 	},
 }
 

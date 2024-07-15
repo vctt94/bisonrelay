@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -35,6 +37,7 @@ import (
 	"github.com/companyzero/bisonrelay/client/resources"
 	"github.com/companyzero/bisonrelay/client/resources/simplestore"
 	"github.com/companyzero/bisonrelay/client/rpcserver"
+	grpctypes "github.com/companyzero/bisonrelay/clientplugin/grpctypes"
 	"github.com/companyzero/bisonrelay/clientrpc/types"
 	"github.com/companyzero/bisonrelay/internal/mdembeds"
 	"github.com/companyzero/bisonrelay/internal/strescape"
@@ -134,6 +137,8 @@ type appState struct {
 	pushRate       uint64 // milliatoms / byte
 	subRate        uint64 // milliatoms / byte
 	expirationDays uint64
+
+	pluginsClient map[clientintf.PluginID]*client.PluginClient
 
 	// When written, this makes the next wallet check be skipped.
 	skipWalletCheckChan chan struct{}
@@ -2656,6 +2661,94 @@ func (as *appState) handleCmd(rawText string, args []string) {
 	}
 }
 
+func (as *appState) initPlugin(cw *chatWindow, pid clientintf.PluginID, address string) {
+	req := &grpctypes.PluginStartStreamRequest{
+		ClientId: as.c.PublicID().Bytes(),
+	}
+
+	if as.pluginsClient[pid] == nil {
+		pluginClientCfg := client.PluginClientCfg{
+			Log:     as.logBknd.logger("Plugins"),
+			Address: address,
+		}
+		pluginClient, err := client.NewPluginClient(as.ctx, pluginClientCfg)
+		if err != nil {
+			as.cwHelpMsg("Unable to start new plugin")
+			return
+		}
+		as.pluginsClient[pid] = pluginClient
+	}
+
+	err := as.pluginsClient[pid].InitPlugin(as.ctx, req, func(stream grpctypes.PluginService_InitClient) {
+		as.listenForAppUpdates(stream)
+	})
+
+	if err != nil {
+		as.cwHelpMsg("Unable to init plugin %q: %v",
+			cw.alias, err)
+	}
+}
+
+func (as *appState) pluginVersion(cw *chatWindow, pid clientintf.PluginID) {
+	version, err := as.pluginsClient[pid].Version(as.ctx)
+	if err != nil {
+		as.cwHelpMsg("Unable to get version: %v", err)
+		return
+	}
+	as.cwHelpMsg("plugin version: %+v\n", version)
+}
+
+func (as *appState) pluginAction(cw *chatWindow, pid clientintf.PluginID) {
+	err := as.pluginsClient[pid].ActionPlugin(as.ctx, &grpctypes.PluginCallActionStreamRequest{
+		// Fill in required fields
+	}, func(stream grpctypes.PluginService_CallActionClient) error {
+		as.listenForAppActions(stream)
+		as.cwHelpMsg("Client called action")
+		return nil
+	})
+
+	if err != nil {
+		as.cwHelpMsg("Unable to call action: %v", err)
+		return
+	}
+}
+
+func (as *appState) listenForAppActions(stream grpctypes.PluginService_CallActionClient) {
+	go func() {
+		for {
+			update, err := stream.Recv()
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			if err != nil {
+				log.Printf("Error receiving update: %v", err)
+				return
+			}
+			fmt.Printf("update: %+v\n", update)
+			// pc.updatesCh <- GameUpdateMsg(update)
+		}
+		log.Println("Stream closed")
+	}()
+}
+
+func (as *appState) listenForAppUpdates(stream grpctypes.PluginService_InitClient) {
+	go func() {
+		for {
+			update, err := stream.Recv()
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			if err != nil {
+				log.Printf("Error receiving update: %v", err)
+				return
+			}
+			fmt.Printf("update: %+v\n", update)
+			// pc.updatesCh <- GameUpdateMsg(update)
+		}
+		log.Println("Stream closed")
+	}()
+}
+
 // newAppState initializes the main app state.
 func newAppState(sendMsg func(tea.Msg), lndLogLines *sloglinesbuffer.Buffer,
 	isRestore bool, args *config) (*appState, error) {
@@ -3794,6 +3887,14 @@ func newAppState(sendMsg func(tea.Msg), lndLogLines *sloglinesbuffer.Buffer,
 		if err != nil {
 			return nil, err
 		}
+		pluginServerCfg := rpcserver.PluginServerCfg{
+			Log:    logBknd.logger("RPCS"),
+			Client: c,
+		}
+		err = rpcServer.InitPluginService(pluginServerCfg)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Bind the selected upstream resource provider.
@@ -3880,6 +3981,8 @@ func newAppState(sendMsg func(tea.Msg), lndLogLines *sloglinesbuffer.Buffer,
 		lnWallet:    lnWallet,
 		httpClient:  &httpClient,
 		rates:       r,
+
+		pluginsClient: make(map[clientintf.PluginID]*client.PluginClient),
 
 		gcInvites: make(map[string]uint64),
 		network:   args.Network,
