@@ -149,6 +149,9 @@ const (
 	CTListGCInvites                       = 0x8b
 	CTCancelDownload                      = 0x8c
 	CTSubAllPosts                         = 0x8d
+	CTListPluginsInstalled                = 0x8e
+	CTListPluginsEnabled                  = 0x8f
+	CTAddNewPlugin                        = 0x90
 
 	NTInviteReceived         = 0x1001
 	NTInviteAccepted         = 0x1002

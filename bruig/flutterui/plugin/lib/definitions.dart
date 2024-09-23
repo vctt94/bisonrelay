@@ -2183,6 +2183,22 @@ class ZipLogsArgs {
   Map<String, dynamic> toJson() => _$ZipLogsArgsToJson(this);
 }
 
+@JsonSerializable()
+class AddNewPluginArgs {
+  @JsonKey(name: "plugin_id")
+  final String pluginID;
+
+  final String address;
+
+  @JsonKey(name: "filepath")
+  final String certFilepath;
+
+  AddNewPluginArgs(this.pluginID, this.address, this.certFilepath);
+
+  // To JSON
+  Map<String, dynamic> toJson() => _$AddNewPluginToJson(this);
+}
+
 mixin NtfStreams {
   StreamController<RemoteUser> ntfAcceptedInvites =
       StreamController<RemoteUser>();
@@ -2772,6 +2788,41 @@ abstract class PluginPlatform {
     return List.castFrom(res);
   }
 
+  Future<void> addNewPlugin(
+      String pluginID, String address, String certFilepath) async {
+    // Create an instance of the AddNewPlugin class
+    var args = AddNewPluginArgs(pluginID, address, certFilepath);
+
+    // Pass the JSON representation of the args to asyncCall
+    await asyncCall(CTAddNewPlugin, args.toJson());
+  }
+
+  Future<List<Map<String, dynamic>>> listInstalledPlugins() async {
+    // Simulating an asynchronous call to fetch available plugins
+    var res = await asyncCall(CTListPluginsInstalled, null);
+    print("Raw result from asyncCall: $res");
+    // If the result is null, return an empty list
+    if (res == null) {
+      return [];
+    }
+
+    // Cast the result to a list of strings and return it
+    return List.castFrom(res);
+  }
+
+  Future<List<Map<String, dynamic>>> listAvailablePlugins() async {
+    // Simulating an asynchronous call to fetch available plugins
+    var res = await asyncCall(CTListPluginsEnabled, null);
+
+    // If the result is null, return an empty list
+    if (res == null) {
+      return [];
+    }
+
+    // Cast the result to a list of strings and return it
+    return List.castFrom(res);
+  }
+
   Future<List<FileDownload>> listDownloads() async {
     var res = await asyncCall(CTListDownloads, null);
     if (res == null) {
@@ -3317,6 +3368,9 @@ const int CTZipTimedProfilingLogs = 0x8a;
 const int CTListGCInvites = 0x8b;
 const int CTCancelDownload = 0x8c;
 const int CTSubAllPosts = 0x8d;
+const int CTListPluginsInstalled = 0x8e;
+const int CTListPluginsEnabled = 0x8f;
+const int CTAddNewPlugin = 0x90;
 
 const int notificationsStartID = 0x1000;
 

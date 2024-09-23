@@ -19,6 +19,7 @@ import 'package:bruig/screens/chats.dart';
 import 'package:bruig/screens/feed.dart';
 import 'package:bruig/screens/feed/post_content.dart';
 import 'package:bruig/notification_service.dart';
+import 'package:bruig/screens/plugins/plugin_content.dart';
 import 'package:bruig/screens/settings.dart';
 import 'package:bruig/screens/viewpage_screen.dart';
 import 'package:flutter/material.dart';
@@ -44,7 +45,12 @@ class PageTabs {
   final ChatModel? userPostList;
   final PostContentScreenArgs? postScreenArgs;
 
-  PageTabs(this.tabIndex, this.userPostList, this.postScreenArgs);
+  // Add plugin-related fields
+  final ChatModel? userPluginList;
+  final PluginContentScreenArgs? pluginScreenArgs;
+
+  PageTabs(this.tabIndex, this.userPostList, this.postScreenArgs,
+      {this.userPluginList, this.pluginScreenArgs});
 }
 
 class OverviewScreen extends StatefulWidget {

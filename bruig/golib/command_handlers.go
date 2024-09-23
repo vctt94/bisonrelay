@@ -1159,6 +1159,19 @@ func handleClientCmd(cc *clientCtx, cmd *cmd) (interface{}, error) {
 	case CTListSubscribers:
 		return c.ListPostSubscribers()
 
+	case CTListPluginsEnabled:
+		return c.GetEnabledPlugins()
+
+	case CTAddNewPlugin:
+		var req addNewPlugin
+		if err := cmd.decode(&req); err != nil {
+			return nil, err
+		}
+		c.AddNewPlugin(context.Background(), req.PluginID, req.Address, req.CertFilepath)
+
+	case CTListPluginsInstalled:
+		return c.ListPlugins()
+
 	case CTListSubscriptions:
 		subs, err := c.ListPostSubscriptions()
 		if err != nil {

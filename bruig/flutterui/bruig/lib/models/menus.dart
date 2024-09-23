@@ -15,6 +15,7 @@ import 'package:bruig/screens/ln_management.dart';
 import 'package:bruig/screens/log.dart';
 import 'package:bruig/screens/manage_content_screen.dart';
 import 'package:bruig/screens/paystats.dart';
+import 'package:bruig/screens/plugin.dart';
 import 'package:bruig/screens/settings.dart';
 import 'package:bruig/screens/viewpage_screen.dart';
 import 'package:flutter/material.dart';
@@ -51,6 +52,12 @@ final List<SubMenuInfo> feedScreenSub = [
   SubMenuInfo(1, "Your Posts"),
   SubMenuInfo(2, "Subscriptions"),
   SubMenuInfo(3, "New Post")
+];
+
+final List<SubMenuInfo> pluginScreenSub = [
+  SubMenuInfo(0, "Plugins"),
+  SubMenuInfo(1, "All Plugins"),
+  SubMenuInfo(2, "Config")
 ];
 
 final List<SubMenuInfo> manageContentScreenSub = [
@@ -112,6 +119,17 @@ final List<MainMenuItem> mainMenu = [
       (context) => const ManageContentScreenTitle(),
       const SidebarSvgIcon("assets/icons/icons-menu-files.svg"),
       manageContentScreenSub),
+  MainMenuItem(
+      "Plugins", // New Plugin Menu
+      PluginScreen.routeName, // Ensure this matches the correct route name
+      (context) => Consumer<MainMenuModel>(
+          builder: (context, menu, child) =>
+              PluginScreen(menu)), // Add your PluginScreen here
+      (context) =>
+          const PluginScreenTitle(), // Define PluginScreenTitle similar to others
+      const SidebarSvgIcon(
+          "assets/icons/icons-menu-plugins.svg"), // New SVG icon for Plugins
+      pluginScreenSub), // Use the plugin submenu items
   MainMenuItem(
       "Stats",
       PayStatsScreen.routeName,

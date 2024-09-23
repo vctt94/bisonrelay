@@ -3,6 +3,7 @@
 import 'dart:async';
 import 'dart:collection';
 
+import 'package:bruig/models/plugin.dart';
 import 'package:bruig/models/resources.dart';
 import 'package:bruig/models/uistate.dart';
 import 'package:flutter/foundation.dart';
@@ -597,6 +598,38 @@ class BoolFlagModel extends ChangeNotifier {
   }
 
   BoolFlagModel({initial = false}) : _val = initial;
+}
+
+class PluginsListModel extends ChangeNotifier {
+  final List<PluginModel> _activePlugins = [];
+  UnmodifiableListView<PluginModel> get activePlugins =>
+      UnmodifiableListView(_activePlugins);
+
+  bool get isNotEmpty => _activePlugins.isNotEmpty;
+
+  bool contains(PluginModel? plugin) => _activePlugins.contains(plugin);
+
+  // Method to add an active plugin
+  void addActivePlugin(PluginModel plugin) {
+    if (_activePlugins.contains(plugin)) {
+      return;
+    }
+    _activePlugins.add(plugin);
+    notifyListeners();
+  }
+
+  // Method to remove an active plugin
+  void removePlugin(PluginModel plugin) {
+    if (_activePlugins.remove(plugin)) {
+      notifyListeners();
+    }
+  }
+
+  // Method to clear all active plugins
+  void clearAllPlugins() {
+    _activePlugins.clear();
+    notifyListeners();
+  }
 }
 
 class ClientModel extends ChangeNotifier {

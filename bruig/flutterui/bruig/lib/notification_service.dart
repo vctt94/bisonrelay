@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:bruig/models/plugin.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:golib_plugin/definitions.dart';
 // import 'package:permission_handler/permission_handler.dart';
@@ -394,6 +395,21 @@ class NotificationService {
     await _notificationService.flutterLocalNotificationsPlugin.show(
         id++, ntfnTitle, post.title, notificationDetails,
         payload: "post:${post.authorID}:${post.id}");
+  }
+
+  // showPluginNotification is used when a new plugin is activated or installed.
+  Future<void> showPluginNotification(PluginModel plugin) async {
+    // If notifications aren't enabled, just skip
+    if (!await allowNotifications()) return;
+
+    // Create the notification details
+    const NotificationDetails notificationDetails =
+        NotificationDetails(/*android: androidNotificationDetails*/);
+
+    var ntfnTitle = "New Plugin Activated: ${plugin.name}";
+    await _notificationService.flutterLocalNotificationsPlugin.show(id++,
+        ntfnTitle, "Plugin ${plugin.name} is now active", notificationDetails,
+        payload: "plugin:${plugin.id}");
   }
 
   // showPostCommentNotification is used when a new comment on an already

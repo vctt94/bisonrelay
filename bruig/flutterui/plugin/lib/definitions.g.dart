@@ -2168,3 +2168,17 @@ Map<String, dynamic> _$ZipLogsArgsToJson(ZipLogsArgs instance) =>
       'only_last_file': instance.onlyLastFile,
       'dest_path': instance.destPath,
     };
+
+AddNewPluginArgs _$AddNewPluginFromJson(Map<String, dynamic> json) =>
+    AddNewPluginArgs(
+      json['plugin_id'] as String,
+      json['address'] as String,
+      json['filepath'] as String,
+    );
+
+Map<String, dynamic> _$AddNewPluginToJson(AddNewPluginArgs instance) =>
+    <String, dynamic>{
+      'plugin_id': instance.pluginID,
+      'address': instance.address,
+      'filepath': instance.certFilepath,
+    };

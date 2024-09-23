@@ -502,3 +502,9 @@ type zipLogsArgs struct {
 	OnlyLastFile bool   `json:"only_last_file"`
 	DestPath     string `json:"dest_path"`
 }
+
+type addNewPlugin struct {
+	PluginID     clientintf.PluginID `json:"plugin_id"`
+	Address      string              `json:"address"`
+	CertFilepath string              `json:"filepath"`
+}
