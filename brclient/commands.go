@@ -469,6 +469,29 @@ var listCommands = []tuicmd{
 			return nil
 		},
 	}, {
+		cmd:           "plugins",
+		usableOffline: true,
+		descr:         "List plugins inited",
+		handler: func(args []string, as *appState) error {
+			plugins, err := as.c.ListPlugins()
+			if err != nil {
+				return err
+			}
+
+			as.cwHelpMsgs(func(pf printf) {
+				pf("")
+				pf("Active KX attempts")
+				for _, plugin := range plugins {
+					pf("Plugin Name: %s   Version: %v   Enabled: %s",
+						plugin.Name, plugin.Version, plugin.Enabled)
+					pf("Plugin installed: %v Last updated: %v",
+						plugin.Installed.Format(ISO8601DateTime), plugin.Updated.Format(ISO8601DateTime))
+					pf("")
+				}
+			})
+			return nil
+		},
+	}, {
 		cmd:     "svrrates",
 		aliases: []string{"serverrates"},
 		descr:   "Show server fee rates",
@@ -3535,6 +3558,78 @@ var myAvatarCmds = []tuicmd{
 	},
 }
 
+var pluginCmds = []tuicmd{
+	{
+		cmd:   "init",
+		usage: "<nick or id> <plugin-address> <tls-cert-path>",
+		descr: "Initialize a new plugin with the specified address and TLS certificate path",
+		handler: func(args []string, as *appState) error {
+			// Ensure there are exactly three arguments: nick/id, plugin address, and TLS cert path
+			// if len(args) < 3 {
+			// 	return usageError{msg: "Nick or ID, Plugin Address, and TLS Certificate Path are required"}
+			// }
+
+			// // Extract arguments
+			// nickOrID := args[0]
+			// pluginAddress := args[1]
+			// tlsCertPath := args[2]
+
+			// // Find user by nick or ID
+			// ru, err := as.c.UserByNick(nickOrID)
+			// if err != nil {
+			// 	return err
+			// }
+
+			// // Find or create a new chat window for the user
+			// cw := as.findOrNewChatWindow(ru.ID(), ru.Nick())
+
+			// // Initialize the plugin with the address and TLS cert path
+			// go as.initPlugin(cw, ru.ID(), pluginAddress, tlsCertPath)
+			return nil
+		},
+	}, {
+		cmd:   "version",
+		descr: "Get plugin's version",
+		handler: func(args []string, as *appState) error {
+			if len(args) < 1 {
+				return usageError{msg: "Nick or ID cannot be empty"}
+			}
+
+			ru, err := as.c.UserByNick(args[0])
+			if err != nil {
+				return err
+			}
+			cw := as.findOrNewChatWindow(ru.ID(), ru.Nick())
+			as.pluginVersion(cw, ru.ID())
+			// as.initPlugin(cw)
+			return nil
+		},
+	}, {
+		cmd:   "action",
+		descr: "Calls a plugin action",
+		handler: func(args []string, as *appState) error {
+			if len(args) < 2 {
+				return usageError{msg: "Usage: action <Nick or ID> <action> [<data>]"}
+			}
+
+			ru, err := as.c.UserByNick(args[0])
+			if err != nil {
+				return err
+			}
+
+			action := args[1]
+			var data []byte
+			if len(args) == 3 {
+				data = []byte(args[2])
+			}
+
+			pw := as.findOrNewPluginWindow(ru.ID(), ru.Nick())
+			go as.pluginAction(pw, ru.ID(), action, data)
+			return nil
+		},
+	},
+}
+
 var commands = []tuicmd{
 	{
 		cmd:           "backup",
@@ -3863,7 +3958,7 @@ var commands = []tuicmd{
 	}, {
 		cmd:           "win",
 		usableOffline: true,
-		usage:         "<number | 'log' | 'console' | 'feed [user]'>",
+		usage:         "<number | 'log' | 'console' | 'feed [user]' | 'plugin [uid]'>",
 		aliases:       []string{"w"},
 		descr:         "Change the current window",
 		handler: func(args []string, as *appState) error {
@@ -3888,6 +3983,16 @@ var commands = []tuicmd{
 					as.feedAuthor = nil
 				}
 				as.changeActiveWindow(activeCWFeed)
+			} else if args[0] == "plugin" {
+
+				ru, err := as.c.UserByNick(args[1])
+				if err != nil {
+					return err
+				}
+				pluginUID := ru.ID()
+				as.activePWUID = &pluginUID
+
+				as.changeActiveWindow(activeCWPlugin)
 			} else {
 				win, err := strconv.ParseInt(args[0], 10, 32)
 				if err != nil {
@@ -4413,6 +4518,19 @@ var commands = []tuicmd{
 			as.sendMsg(requestShutdown{})
 			return nil
 		},
+	},
+	{
+		cmd:           "plugin",
+		usableOffline: true,
+		descr:         "Plugin Commands",
+		sub:           pluginCmds,
+		completer: func(args []string, arg string, as *appState) []string {
+			if len(args) == 0 {
+				return cmdCompleter(pluginCmds, arg, false)
+			}
+			return nil
+		},
+		handler: subcmdNeededHandler,
 	},
 }
 

@@ -6,6 +6,78 @@ syntax = "proto3";
 
 option go_package = "github.com/companyzero/bisconrelay/clientrpc/types";
 
+service PluginService {
+  rpc Init(PluginStartStreamRequest) returns (stream PluginStartStreamResponse);
+  rpc CallAction (PluginCallActionStreamRequest) returns (stream PluginCallActionStreamResponse);
+  rpc SendInput(PluginInputRequest) returns (PluginInputResponse);
+  rpc GetVersion (PluginVersionRequest) returns (PluginVersionResponse);
+  rpc Render(RenderRequest) returns (RenderResponse);
+}
+
+/******************************************************************************
+  *                           Messages
+  *****************************************************************************/
+
+
+message RenderRequest {
+  bytes data = 1;
+}
+
+message RenderResponse {
+  string data = 1;
+}
+
+message PluginStartStreamRequest {
+  string client_id = 1;
+}
+
+message PluginStartStreamResponse {
+  string client_id = 1;
+  bool started = 2;
+  string message = 3;
+}
+
+message PluginVersionRequest {
+}
+
+/* VersionResponse is the information about the running RPC server. */
+message PluginVersionResponse {
+  /* app_version is the version of the application. */
+  string app_version = 1;
+
+  /* go_runtime is the Go version the server was compiled with. */
+  string go_runtime = 2;
+
+  /* app_name is the name of the underlying app running the server. */
+  string app_name = 3;
+}
+
+message PluginCallActionStreamRequest {
+  string client_id = 1;
+  string action = 2;
+  bytes data = 3;
+}
+
+message PluginCallActionStreamResponse {
+  bytes response = 1;
+}
+
+message PluginCallActionUpdate {
+  string update_message = 1;
+}
+
+// Define the request and response messages for SendInput
+message PluginInputRequest {
+  string client_id = 1;
+  bytes data = 3;
+}
+
+message PluginInputResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+
 /* VersionService is the service information about the version of a running RPC
    server. */
 service VersionService {

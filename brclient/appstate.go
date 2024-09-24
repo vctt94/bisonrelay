@@ -64,6 +64,7 @@ const (
 	activeCWFeed   = -2             // feed window
 	activeCWLog    = -3             // log window
 	activeCWLndLog = -4             // lnd log window
+	activeCWPlugin = -5             // plugin window
 	lastCWWindow   = activeCWLndLog // Must *ALWAYS* match the last item.
 
 	wordBreakpoints = ""
@@ -134,6 +135,11 @@ type appState struct {
 	pushRate       uint64 // milliatoms / byte
 	subRate        uint64 // milliatoms / byte
 	expirationDays uint64
+
+	pluginsClient    map[clientintf.PluginID]*client.PluginClient
+	pluginWindowsMtx sync.Mutex
+	pluginWindows    []*pluginWindow
+	activePWUID      *clientintf.PluginID
 
 	// When written, this makes the next wallet check be skipped.
 	skipWalletCheckChan chan struct{}
@@ -814,6 +820,10 @@ func (as *appState) activeWindowMsgs() string {
 		as.chatWindowsMtx.Unlock()
 		return ""
 
+	case as.activeCW == activeCWPlugin:
+		as.chatWindowsMtx.Unlock()
+		return ""
+
 	case as.activeCW < 0 || as.activeCW > len(as.chatWindows):
 		// Unknown window.
 		w := as.activeCW
@@ -916,6 +926,13 @@ func (as *appState) changeActiveWindow(win int) {
 	as.chatWindowsMtx.Lock()
 	defer as.chatWindowsMtx.Unlock()
 
+	if win == activeCWPlugin {
+		as.sendMsg(showPluginWindow{
+			uid: as.activePWUID,
+		})
+		return
+	}
+
 	switch {
 	case win >= lastCWWindow && win < len(as.chatWindows):
 		// Valid window. Keep going.
@@ -1007,6 +1024,9 @@ func (as *appState) activeWinLabel() (string, []string, map[string]struct{}) {
 
 	case as.activeCW == activeCWFeed:
 		label = "feed"
+
+	case as.activeCW == activeCWPlugin:
+		label = "plugin"
 
 	case as.activeCW >= 0 && as.activeCW < len(as.chatWindows):
 		alias := as.chatWindows[as.activeCW].alias
@@ -1177,6 +1197,36 @@ func (as *appState) findOrNewGCWindow(gcID zkidentity.ShortID) *chatWindow {
 	as.footerInvalidate()
 	as.diagMsg("Started Group Chat %s", gcName)
 	return cw
+}
+
+func (as *appState) findOrNewPluginWindow(id clientintf.PluginID, alias string) *pluginWindow {
+	as.pluginWindowsMtx.Lock()
+	for _, pw := range as.pluginWindows {
+		if pw.uid == id {
+			as.pluginWindowsMtx.Unlock()
+			return pw
+		}
+	}
+
+	if alias == "" {
+		alias, _ = as.c.UserNick(id)
+		if alias == "" {
+			alias = id.ShortLogID()
+		}
+	}
+
+	pw := &pluginWindow{
+		uid:   id,
+		alias: strescape.Nick(alias),
+		me:    as.c.LocalNick(),
+		as:    as,
+	}
+	as.pluginWindows = append(as.pluginWindows, pw)
+	as.updatedCW[len(as.pluginWindows)-1] = false
+	as.pluginWindowsMtx.Unlock()
+
+	as.footerInvalidate()
+	return pw
 }
 
 // findOrNewChatWindow finds the existing chat window for the given user or
@@ -2657,6 +2707,98 @@ func (as *appState) handleCmd(rawText string, args []string) {
 	}
 }
 
+// pluginVersion retrieves and displays the version of a specific plugin.
+func (as *appState) pluginVersion(cw *chatWindow, pid clientintf.PluginID) {
+	var resp *types.PluginVersionResponse
+	err := as.pluginsClient[pid].GetVersion(as.ctx, &types.PluginVersionRequest{}, resp)
+	if err != nil {
+		as.cwHelpMsg("Unable to get plugin version: %v", err)
+		return
+	}
+	as.cwHelpMsg("Plugin version: %+v", resp.AppVersion)
+}
+
+// pluginAction calls a specific action on a plugin and listens for updates.
+func (as *appState) pluginAction(pw *pluginWindow, pid clientintf.PluginID, action string, data []byte) error {
+	if as.pluginsClient[pid] == nil {
+		as.cwHelpMsg("Plugin not found")
+		return fmt.Errorf("plugin not found")
+	}
+
+	req := &types.PluginCallActionStreamRequest{
+		Action:   action,
+		Data:     data,
+		ClientId: as.c.Public().String(),
+	}
+
+	// Call the plugin action and set up a listener for updates.
+	err := as.pluginsClient[pid].CallPluginAction(as.ctx, req, func(stream types.PluginService_CallActionClient) error {
+		as.cwHelpMsg("Client called action")
+		return nil
+	})
+
+	if err != nil {
+		as.cwHelpMsg("Unable to call action: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+// pluginAction calls a specific action on a plugin and listens for updates.
+func (as *appState) pluginInput(pw *pluginWindow, pid clientintf.PluginID, data []byte) error {
+	if as.pluginsClient[pid] == nil {
+		as.cwHelpMsg("Plugin not found")
+		return fmt.Errorf("plugin not found")
+	}
+
+	req := &types.PluginInputRequest{
+		Data:     data,
+		ClientId: as.c.Public().String(),
+	}
+
+	var resp *types.PluginInputResponse
+	// Call the plugin action and set up a listener for updates.
+	err := as.pluginsClient[pid].CallPluginInput(as.ctx, req, resp)
+	if err != nil {
+		as.cwHelpMsg("Unable to call action: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+// startReadingUpdatesAndNtfn starts goroutines to handle updates and notifications from a plugin.
+func (as *appState) startReadingUpdatesAndNtfn(id zkidentity.ShortID) {
+	// Start a goroutine to handle updates from the plugin.
+	go func() {
+		for update := range as.pluginsClient[id].UpdateCh {
+			// Render the update and handle any errors.
+			var resp *types.RenderResponse
+			err := as.pluginsClient[id].Render(as.ctx, update, resp)
+			if err != nil {
+				as.log.Error("Error rendering plugin update for %s: %v", as.pluginsClient[id].Name, err)
+				return
+			}
+
+			// Send the rendered update to the plugin window.
+			for _, pw := range as.pluginWindows {
+				if pw.uid == id {
+					pw.renderPluginString(id.String(), resp.Data)
+				}
+			}
+		}
+	}()
+
+	// Start a goroutine to handle notifications from the plugin.
+	go func() {
+		for update := range as.pluginsClient[id].NtfnCh {
+			// Display the notification message.
+			as.cwHelpMsg("Notification received from plugin %s: %v", as.pluginsClient[id].Name, update.Message)
+		}
+	}()
+}
+
 // newAppState initializes the main app state.
 func newAppState(sendMsg func(tea.Msg), lndLogLines *sloglinesbuffer.Buffer,
 	isRestore bool, args *config) (*appState, error) {
@@ -3141,6 +3283,9 @@ func newAppState(sendMsg func(tea.Msg), lndLogLines *sloglinesbuffer.Buffer,
 			}
 			if showExpDays {
 				as.diagMsg("Days to Expire Data: %d", expDays)
+			}
+			if err != nil {
+				as.diagMsg("Initializing plugin errored: %v", err)
 			}
 			as.diagMsg("Client ready!")
 		} else {
@@ -3739,6 +3884,25 @@ func newAppState(sendMsg func(tea.Msg), lndLogLines *sloglinesbuffer.Buffer,
 			return nil, err
 		}
 
+		pluginRPCServerCfg := rpcserver.PluginServerCfg{
+			Log:    logBknd.logger("RPCS"),
+			Client: c,
+
+			// Following are handlers called when the rpc server receives
+			// a request to perform an action.
+
+			OnInit: func(ctx context.Context, uid client.UserID, ntfn *types.PluginStartStreamResponse) error {
+				as.pluginsClient[uid].NtfnCh <- ntfn
+				return nil
+			},
+			OnAction: func(ctx context.Context, uid client.GCID, update *types.PluginCallActionStreamResponse) error {
+				as.pluginsClient[uid].UpdateCh <- update
+
+				return nil
+			},
+		}
+		err = rpcServer.InitPluginService(pluginRPCServerCfg)
+
 		postsRPCServerCfg := rpcserver.PostsServerCfg{
 			Log:               logBknd.logger("RPCS"),
 			Client:            c,
@@ -3876,6 +4040,8 @@ func newAppState(sendMsg func(tea.Msg), lndLogLines *sloglinesbuffer.Buffer,
 		lnWallet:    lnWallet,
 		httpClient:  &httpClient,
 		rates:       r,
+
+		pluginsClient: make(map[clientintf.PluginID]*client.PluginClient),
 
 		network:   args.Network,
 		isRestore: isRestore,

@@ -9,6 +9,172 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 )
 
+// PluginServiceClient is the client API for PluginService service.
+type PluginServiceClient interface {
+	Init(ctx context.Context, in *PluginStartStreamRequest) (PluginService_InitClient, error)
+	CallAction(ctx context.Context, in *PluginCallActionStreamRequest) (PluginService_CallActionClient, error)
+	SendInput(ctx context.Context, in *PluginInputRequest, out *PluginInputResponse) error
+	GetVersion(ctx context.Context, in *PluginVersionRequest, out *PluginVersionResponse) error
+	Render(ctx context.Context, in *RenderRequest, out *RenderResponse) error
+}
+
+type client_PluginService struct {
+	c    ClientConn
+	defn ServiceDefn
+}
+type PluginService_InitClient interface {
+	Recv(*PluginStartStreamResponse) error
+}
+
+func (c *client_PluginService) Init(ctx context.Context, in *PluginStartStreamRequest) (PluginService_InitClient, error) {
+	const method = "Init"
+	inner, err := c.defn.Methods[method].ClientStreamHandler(c.c, ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return streamerImpl[*PluginStartStreamResponse]{c: inner}, nil
+}
+
+type PluginService_CallActionClient interface {
+	Recv(*PluginCallActionStreamResponse) error
+}
+
+func (c *client_PluginService) CallAction(ctx context.Context, in *PluginCallActionStreamRequest) (PluginService_CallActionClient, error) {
+	const method = "CallAction"
+	inner, err := c.defn.Methods[method].ClientStreamHandler(c.c, ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return streamerImpl[*PluginCallActionStreamResponse]{c: inner}, nil
+}
+
+func (c *client_PluginService) SendInput(ctx context.Context, in *PluginInputRequest, out *PluginInputResponse) error {
+	const method = "SendInput"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+func (c *client_PluginService) GetVersion(ctx context.Context, in *PluginVersionRequest, out *PluginVersionResponse) error {
+	const method = "GetVersion"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+func (c *client_PluginService) Render(ctx context.Context, in *RenderRequest, out *RenderResponse) error {
+	const method = "Render"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+func NewPluginServiceClient(c ClientConn) PluginServiceClient {
+	return &client_PluginService{c: c, defn: PluginServiceDefn()}
+}
+
+// PluginServiceServer is the server API for PluginService service.
+type PluginServiceServer interface {
+	Init(context.Context, *PluginStartStreamRequest, PluginService_InitServer) error
+	CallAction(context.Context, *PluginCallActionStreamRequest, PluginService_CallActionServer) error
+	SendInput(context.Context, *PluginInputRequest, *PluginInputResponse) error
+	GetVersion(context.Context, *PluginVersionRequest, *PluginVersionResponse) error
+	Render(context.Context, *RenderRequest, *RenderResponse) error
+}
+
+type PluginService_InitServer interface {
+	Send(m *PluginStartStreamResponse) error
+}
+
+type PluginService_CallActionServer interface {
+	Send(m *PluginCallActionStreamResponse) error
+}
+
+func PluginServiceDefn() ServiceDefn {
+	return ServiceDefn{
+		Name: "PluginService",
+		Methods: map[string]MethodDefn{
+			"Init": {
+				IsStreaming: true,
+				NewRequest:  func() proto.Message { return new(PluginStartStreamRequest) },
+				NewResponse: func() proto.Message { return new(PluginStartStreamResponse) },
+				RequestDefn: func() protoreflect.MessageDescriptor {
+					return new(PluginStartStreamRequest).ProtoReflect().Descriptor()
+				},
+				ResponseDefn: func() protoreflect.MessageDescriptor {
+					return new(PluginStartStreamResponse).ProtoReflect().Descriptor()
+				},
+				Help: "",
+				ServerStreamHandler: func(x interface{}, ctx context.Context, request proto.Message, stream ServerStream) error {
+					return x.(PluginServiceServer).Init(ctx, request.(*PluginStartStreamRequest), streamerImpl[*PluginStartStreamResponse]{s: stream})
+				},
+				ClientStreamHandler: func(conn ClientConn, ctx context.Context, request proto.Message) (ClientStream, error) {
+					method := "PluginService.Init"
+					return conn.Stream(ctx, method, request)
+				},
+			},
+			"CallAction": {
+				IsStreaming: true,
+				NewRequest:  func() proto.Message { return new(PluginCallActionStreamRequest) },
+				NewResponse: func() proto.Message { return new(PluginCallActionStreamResponse) },
+				RequestDefn: func() protoreflect.MessageDescriptor {
+					return new(PluginCallActionStreamRequest).ProtoReflect().Descriptor()
+				},
+				ResponseDefn: func() protoreflect.MessageDescriptor {
+					return new(PluginCallActionStreamResponse).ProtoReflect().Descriptor()
+				},
+				Help: "",
+				ServerStreamHandler: func(x interface{}, ctx context.Context, request proto.Message, stream ServerStream) error {
+					return x.(PluginServiceServer).CallAction(ctx, request.(*PluginCallActionStreamRequest), streamerImpl[*PluginCallActionStreamResponse]{s: stream})
+				},
+				ClientStreamHandler: func(conn ClientConn, ctx context.Context, request proto.Message) (ClientStream, error) {
+					method := "PluginService.CallAction"
+					return conn.Stream(ctx, method, request)
+				},
+			},
+			"SendInput": {
+				IsStreaming:  false,
+				NewRequest:   func() proto.Message { return new(PluginInputRequest) },
+				NewResponse:  func() proto.Message { return new(PluginInputResponse) },
+				RequestDefn:  func() protoreflect.MessageDescriptor { return new(PluginInputRequest).ProtoReflect().Descriptor() },
+				ResponseDefn: func() protoreflect.MessageDescriptor { return new(PluginInputResponse).ProtoReflect().Descriptor() },
+				Help:         "",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(PluginServiceServer).SendInput(ctx, request.(*PluginInputRequest), response.(*PluginInputResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "PluginService.SendInput"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"GetVersion": {
+				IsStreaming:  false,
+				NewRequest:   func() proto.Message { return new(PluginVersionRequest) },
+				NewResponse:  func() proto.Message { return new(PluginVersionResponse) },
+				RequestDefn:  func() protoreflect.MessageDescriptor { return new(PluginVersionRequest).ProtoReflect().Descriptor() },
+				ResponseDefn: func() protoreflect.MessageDescriptor { return new(PluginVersionResponse).ProtoReflect().Descriptor() },
+				Help:         "",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(PluginServiceServer).GetVersion(ctx, request.(*PluginVersionRequest), response.(*PluginVersionResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "PluginService.GetVersion"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"Render": {
+				IsStreaming:  false,
+				NewRequest:   func() proto.Message { return new(RenderRequest) },
+				NewResponse:  func() proto.Message { return new(RenderResponse) },
+				RequestDefn:  func() protoreflect.MessageDescriptor { return new(RenderRequest).ProtoReflect().Descriptor() },
+				ResponseDefn: func() protoreflect.MessageDescriptor { return new(RenderResponse).ProtoReflect().Descriptor() },
+				Help:         "",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(PluginServiceServer).Render(ctx, request.(*RenderRequest), response.(*RenderResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "PluginService.Render"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+		},
+	}
+}
+
 // VersionServiceClient is the client API for VersionService service.
 type VersionServiceClient interface {
 	// Version returns version information about the server.
@@ -1430,6 +1596,57 @@ func ContentServiceDefn() ServiceDefn {
 }
 
 var help_messages = map[string]map[string]string{
+	"RenderRequest": {
+		"@":    "",
+		"data": "",
+	},
+	"RenderResponse": {
+		"@":    "",
+		"data": "",
+	},
+	"PluginStartStreamRequest": {
+		"@":         "",
+		"client_id": "",
+	},
+	"PluginStartStreamResponse": {
+		"@":         "",
+		"client_id": "",
+		"started":   "",
+		"message":   "",
+	},
+	"PluginVersionRequest": {
+		"@": "",
+	},
+	"PluginVersionResponse": {
+		"@":           "VersionResponse is the information about the running RPC server.",
+		"app_version": "app_version is the version of the application.",
+		"go_runtime":  "go_runtime is the Go version the server was compiled with.",
+		"app_name":    "app_name is the name of the underlying app running the server.",
+	},
+	"PluginCallActionStreamRequest": {
+		"@":         "",
+		"client_id": "",
+		"action":    "",
+		"data":      "",
+	},
+	"PluginCallActionStreamResponse": {
+		"@":        "",
+		"response": "",
+	},
+	"PluginCallActionUpdate": {
+		"@":              "",
+		"update_message": "",
+	},
+	"PluginInputRequest": {
+		"@":         "Define the request and response messages for SendInput",
+		"client_id": "",
+		"data":      "",
+	},
+	"PluginInputResponse": {
+		"@":       "",
+		"success": "",
+		"message": "",
+	},
 	"VersionRequest": {
 		"@": "",
 	},
