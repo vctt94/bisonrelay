@@ -3795,6 +3795,9 @@ func newAppState(sendMsg func(tea.Msg), lndLogLines *sloglinesbuffer.Buffer,
 		rpcServer = rpcserver.New(rpcserver.Config{
 			JSONRPCListeners: jsonListeners,
 			Log:              rpcsLog,
+			RPCUser:          args.RPCUser,
+			RPCPass:          args.RPCPass,
+			RequireAuth:      args.RPCRequireAuth,
 		})
 		rpcServer.InitVersionService(appName, version.Version)
 		chatRPCServerCfg := rpcserver.ChatServerCfg{

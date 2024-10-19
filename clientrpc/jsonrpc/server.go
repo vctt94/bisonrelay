@@ -17,6 +17,41 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+func (s *Server) wrapWithBasicAuth(handler http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Check if provided credentials match the server's credentials
+		if !s.requireAuth {
+			// If authentication is not required, proceed with the request
+			handler(w, r)
+		}
+
+		// If Basic Auth is required
+		// Check if rpcuser or rpcpass is not set, respond with Unauthorized
+		if s.rpcuser == "" || s.rpcpass == "" {
+			http.Error(w, "Forbidden", http.StatusUnauthorized)
+			return
+		}
+		// Extract the username and password from the request's Authorization header
+		username, password, ok := r.BasicAuth()
+
+		if !ok {
+			// If the credentials are missing or malformed, respond with Unauthorized
+			w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		// Check if provided credentials match the server's credentials
+		if username != s.rpcuser || password != s.rpcpass {
+			// If they don't match, respond with StatusForbidden
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		handler(w, r)
+	}
+}
+
 // isServerExpectedCloseErr returns true if the error is expected and should
 // not be logged.
 func isServerExpectedCloseErr(err error) bool {
@@ -50,9 +85,12 @@ func (s *Server) handleWebsocketRequest(ctx context.Context, conn *websocket.Con
 // Server is a JSON-RPC 2.0 server. It supports both POST-based and
 // websockets-based requests.
 type Server struct {
-	services  *types.ServersMap
-	listeners []net.Listener
-	log       slog.Logger
+	services    *types.ServersMap
+	listeners   []net.Listener
+	log         slog.Logger
+	rpcuser     string
+	rpcpass     string
+	requireAuth bool
 }
 
 // Run the server, responding to requests until the context is closed.
@@ -62,10 +100,10 @@ func (s *Server) Run(ctx context.Context) error {
 	serveMux := &http.ServeMux{}
 
 	// Handler for POST JSON-RPC requests.
-	serveMux.HandleFunc("/", s.handlePostRequest)
+	serveMux.HandleFunc("/", s.wrapWithBasicAuth(s.handlePostRequest))
 
-	// Handler for Websocket JSON-RPC requests.
-	serveMux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+	// Handler for WebSocket JSON-RPC requests.
+	wsHandler := func(w http.ResponseWriter, r *http.Request) {
 		upgrader := websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				// Allow requests with no origin header set.
@@ -126,7 +164,8 @@ func (s *Server) Run(ctx context.Context) error {
 					err)
 			}
 		}
-	})
+	}
+	serveMux.HandleFunc("/ws", s.wrapWithBasicAuth(wsHandler))
 
 	httpServer := &http.Server{
 		Handler:     serveMux,
@@ -155,9 +194,12 @@ func (s *Server) Run(ctx context.Context) error {
 }
 
 type serverConfig struct {
-	services  *types.ServersMap
-	listeners []net.Listener
-	log       slog.Logger
+	services    *types.ServersMap
+	listeners   []net.Listener
+	log         slog.Logger
+	requireAuth bool
+	rpcuser     string
+	rpcpass     string
 }
 
 // ServerOption defines an option when configuring a JSON-RPC server.
@@ -187,6 +229,14 @@ func WithServerLog(log slog.Logger) ServerOption {
 	}
 }
 
+func WithBasicAuth(username, password string, requireAuth bool) ServerOption {
+	return func(cfg *serverConfig) {
+		cfg.rpcuser = username
+		cfg.rpcpass = password
+		cfg.requireAuth = requireAuth
+	}
+}
+
 // NewServer returns a new JSON-RPC server.
 //
 // This is usually only used inside Bison Relay clients.
@@ -198,8 +248,11 @@ func NewServer(options ...ServerOption) *Server {
 		opt(cfg)
 	}
 	return &Server{
-		services:  cfg.services,
-		listeners: cfg.listeners,
-		log:       cfg.log,
+		services:    cfg.services,
+		listeners:   cfg.listeners,
+		log:         cfg.log,
+		requireAuth: cfg.requireAuth,
+		rpcuser:     cfg.rpcuser,
+		rpcpass:     cfg.rpcpass,
 	}
 }

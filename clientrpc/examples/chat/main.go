@@ -141,6 +141,7 @@ func realMain() error {
 		jsonrpc.WithServerTLSCertPath(*flagServerCertPath),
 		jsonrpc.WithClientTLSCert(*flagClientCertPath, *flagClientKeyPath),
 		jsonrpc.WithClientLog(log),
+		jsonrpc.WithClientBasicAuth("rpcuser", "rpcpass"),
 	)
 	if err != nil {
 		return err

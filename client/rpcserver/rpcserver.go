@@ -16,6 +16,9 @@ import (
 type Config struct {
 	JSONRPCListeners []net.Listener
 	Log              slog.Logger
+	RPCUser          string
+	RPCPass          string
+	RequireAuth      bool
 }
 
 // Server is an RPC server for a corresponding BR Client instance.
@@ -44,6 +47,7 @@ func New(cfg Config) *Server {
 		jsonrpc.WithServices(services),
 		jsonrpc.WithListeners(cfg.JSONRPCListeners),
 		jsonrpc.WithServerLog(cfg.Log),
+		jsonrpc.WithBasicAuth(cfg.RPCUser, cfg.RPCPass, cfg.RequireAuth),
 	)
 	s := &Server{
 		services:   services,
