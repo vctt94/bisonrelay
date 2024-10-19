@@ -99,6 +99,14 @@ class Config {
   late final bool sendRecvReceipts;
   late final bool autoSubPosts;
   late final bool logPings;
+  late final List<String> jsonrpclisten;
+  late final String rpccertpath;
+  late final String rpckeypath;
+  late final bool rpcissueclientcert;
+  late final String rpcclientcapath;
+  late final String rpcUser;
+  late final String rpcPass;
+  late final bool requireRPCAuth;
 
   Config();
   Config.filled(
@@ -135,7 +143,15 @@ class Config {
       this.autoRemoveIgnoreList = defaultAutoRemoveIgnoreList,
       this.sendRecvReceipts = true,
       this.autoSubPosts = true,
-      this.logPings = false});
+      this.logPings = false,
+      this.jsonrpclisten = const [""],
+      this.rpccertpath = "",
+      this.rpckeypath = "",
+      this.rpcissueclientcert = false,
+      this.rpcclientcapath = "",
+      this.rpcUser = "",
+      this.rpcPass = "",
+      this.requireRPCAuth = true});
   factory Config.newWithRPCHost(
           Config cfg, String rpcHost, String tlsCert, String macaroonPath) =>
       Config.filled(
@@ -173,6 +189,14 @@ class Config {
         sendRecvReceipts: cfg.sendRecvReceipts,
         autoSubPosts: cfg.autoSubPosts,
         logPings: cfg.logPings,
+        jsonrpclisten: cfg.jsonrpclisten,
+        rpccertpath: cfg.rpccertpath,
+        rpckeypath: cfg.rpckeypath,
+        rpcissueclientcert: cfg.rpcissueclientcert,
+        rpcclientcapath: cfg.rpcclientcapath,
+        rpcUser: cfg.rpcUser,
+        rpcPass: cfg.rpcPass,
+        requireRPCAuth: cfg.requireRPCAuth
       );
 
   // Save a new config from scratch.
@@ -393,6 +417,15 @@ Future<Config> loadConfig(String filepath) async {
   c.simpleStoreAccount = f.get("resources", "account") ?? "";
   c.simpleStoreShipCharge =
       double.tryParse(f.get("resources", "shipcharge") ?? "0") ?? 0;
+
+  c.jsonrpclisten = getCommaList("clientrpc", "jsonrpclisten") ?? [""]; // default to [""]
+  c.rpccertpath = f.get("clientrpc", "rpccertpath") ?? "";
+  c.rpckeypath = f.get("clientrpc", "rpckeypath") ?? "";
+  c.rpcissueclientcert = f.get("clientrpc", "rpcissueclientcert") == "true";
+  c.rpcclientcapath = f.get("clientrpc", "rpcclientcapath") ?? "";
+  c.rpcUser = f.get("clientrpc", "rpcuser") ?? "";
+  c.rpcPass = f.get("clientrpc", "rpcpass") ?? "";
+  c.requireRPCAuth = getBoolDefaultTrue("clientrpc", "rpcrequireauth");
 
   return c;
 }

@@ -271,37 +271,44 @@ class _AppState extends State<App> with WindowListener {
     try {
       var cfg = widget.cfg;
       InitClient initArgs = InitClient(
-        cfg.dbRoot,
-        cfg.downloadsDir,
-        cfg.embedsDir,
-        cfg.serverAddr,
-        cfg.lnRPCHost,
-        cfg.lnTLSCert,
-        cfg.lnMacaroonPath,
-        cfg.logFile,
-        cfg.msgRoot,
-        cfg.debugLevel,
-        true,
-        cfg.resourcesUpstream,
-        cfg.simpleStorePayType,
-        cfg.simpleStoreAccount,
-        cfg.simpleStoreShipCharge,
-        cfg.proxyaddr,
-        cfg.torIsolation,
-        cfg.proxyUsername,
-        cfg.proxyPassword,
-        cfg.circuitLimit,
-        cfg.noLoadChatHistory,
-        cfg.autoHandshakeInterval,
-        cfg.autoRemoveIdleUsersInterval,
-        cfg.autoRemoveIgnoreList,
-        cfg.sendRecvReceipts,
-        cfg.autoSubPosts,
-        cfg.logPings,
-        Platform.isAndroid || Platform.isIOS // Use longer interval on mobile
-            ? 210 * 1000 // 210 = 3m30s
-            : 0, // Use whatever is default
-      );
+          cfg.dbRoot,
+          cfg.downloadsDir,
+          cfg.embedsDir,
+          cfg.serverAddr,
+          cfg.lnRPCHost,
+          cfg.lnTLSCert,
+          cfg.lnMacaroonPath,
+          cfg.logFile,
+          cfg.msgRoot,
+          cfg.debugLevel,
+          true,
+          cfg.resourcesUpstream,
+          cfg.simpleStorePayType,
+          cfg.simpleStoreAccount,
+          cfg.simpleStoreShipCharge,
+          cfg.proxyaddr,
+          cfg.torIsolation,
+          cfg.proxyUsername,
+          cfg.proxyPassword,
+          cfg.circuitLimit,
+          cfg.noLoadChatHistory,
+          cfg.autoHandshakeInterval,
+          cfg.autoRemoveIdleUsersInterval,
+          cfg.autoRemoveIgnoreList,
+          cfg.sendRecvReceipts,
+          cfg.autoSubPosts,
+          cfg.logPings,
+          Platform.isAndroid || Platform.isIOS // Use longer interval on mobile
+              ? 210 * 1000 // 210 = 3m30s
+              : 0, // Use whatever is default
+          cfg.jsonrpclisten,
+          cfg.rpccertpath,
+          cfg.rpckeypath,
+          cfg.rpcissueclientcert,
+          cfg.rpcclientcapath,
+          cfg.rpcUser,
+          cfg.rpcPass,
+          cfg.requireRPCAuth);
       await Golib.initClient(initArgs);
     } catch (exception) {
       if ("$exception".contains("client already initialized")) {

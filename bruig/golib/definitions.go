@@ -47,6 +47,17 @@ type initClient struct {
 	AutoRemoveIdleUsersInterval int64    `json:"auto_remove_idle_users_interval"`
 	AutoRemoveIdleUsersIgnore   []string `json:"auto_remove_idle_users_ignore"`
 	AutoSubPosts                bool     `json:"auto_sub_posts"`
+
+	// New fields for RPC configuration
+	JSONRPCListen      []string `json:"json_rpc_listen"`
+	RPCCertPath        string   `json:"rpc_cert_path"`
+	RPCKeyPath         string   `json:"rpc_key_path"`
+	RPCClientCAPath    string   `json:"rpc_client_ca_path"`
+	RPCIssueClientCert bool     `json:"rpc_issue_client_cert"`
+	RPCUser            string   `json:"rpc_user"`
+	RPCPass            string   `json:"rpc_pass"`
+	RequireRPCAuth     bool     `json:"require_rpc_auth"`
+	InviteFundsAccount string   `json:"invite_funds_account"`
 }
 
 type iDInit struct {

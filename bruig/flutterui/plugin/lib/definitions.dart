@@ -72,6 +72,24 @@ class InitClient {
   final bool logPings;
   @JsonKey(name: 'ping_interval_ms')
   final int pingIntervalMs;
+  // rpc fields
+  @JsonKey(name: 'json_rpc_listen')
+  final List<String> jsonrpclisten;
+  @JsonKey(name: 'rpc_cert_path')
+  final String rpccertpath;
+  @JsonKey(name: 'rpc_key_path')
+  final String rpckeypath;
+  @JsonKey(name: 'rpc_issue_client_cert')
+  final bool rpcissueclientcert;
+    @JsonKey(name: 'rpc_client_ca_path')
+  final String rpcclientcapath;
+  @JsonKey(name: 'rpc_user')
+  final String rpcUser;
+  @JsonKey(name: 'rpc_pass')
+  final String rpcPass;
+  @JsonKey(name: 'require_rpc_auth')
+  final bool requireRPCAuth;
+  
 
   InitClient(
     this.dbRoot,
@@ -102,6 +120,14 @@ class InitClient {
     this.autoSubPosts,
     this.logPings,
     this.pingIntervalMs,
+    this.jsonrpclisten,
+    this.rpccertpath,
+    this.rpckeypath,
+    this.rpcissueclientcert,
+    this.rpcclientcapath,
+    this.rpcUser,
+    this.rpcPass,
+    this.requireRPCAuth
   );
 
   Map<String, dynamic> toJson() => _$InitClientToJson(this);
