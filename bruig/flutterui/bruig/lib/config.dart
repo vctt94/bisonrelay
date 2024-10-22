@@ -107,6 +107,8 @@ class Config {
   late final String rpcUser;
   late final String rpcPass;
   late final String rpcAuthMode;
+  late final bool rpcAllowRemoteSendTip;
+  late final double rpcMaxRemoteSendTipAmt;
 
   Config();
   Config.filled(
@@ -151,7 +153,9 @@ class Config {
       this.rpcClientCApath = "",
       this.rpcUser = "",
       this.rpcPass = "",
-      this.rpcAuthMode = ""});
+      this.rpcAuthMode = "",
+      this.rpcAllowRemoteSendTip = false,
+      this.rpcMaxRemoteSendTipAmt = 0});
   factory Config.newWithRPCHost(
           Config cfg, String rpcHost, String tlsCert, String macaroonPath) =>
       Config.filled(
@@ -196,7 +200,9 @@ class Config {
         rpcClientCApath: cfg.rpcClientCApath,
         rpcUser: cfg.rpcUser,
         rpcPass: cfg.rpcPass,
-        rpcAuthMode: cfg.rpcAuthMode
+        rpcAuthMode: cfg.rpcAuthMode,
+        rpcAllowRemoteSendTip: cfg.rpcAllowRemoteSendTip,
+        rpcMaxRemoteSendTipAmt: cfg.rpcMaxRemoteSendTipAmt,
       );
 
   // Save a new config from scratch.
@@ -426,6 +432,8 @@ Future<Config> loadConfig(String filepath) async {
   c.rpcUser = f.get("clientrpc", "rpcuser") ?? "";
   c.rpcPass = f.get("clientrpc", "rpcpass") ?? "";
   c.rpcAuthMode = f.get("clientrpc", "rpcauthmode") ?? "";
+  c.rpcAllowRemoteSendTip = getBool("clientrpc", "rpcallowremotesendtip");
+  c.rpcMaxRemoteSendTipAmt = double.tryParse(f.get("clientrpc", "rpcmaxremotesendtipamt") ?? "0") ?? 0;
 
   return c;
 }
