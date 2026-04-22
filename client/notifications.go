@@ -633,6 +633,14 @@ type OnRTDTChatMessageReceived func(sessionRV zkidentity.ShortID, pub rpc.RMRTDT
 
 func (OnRTDTChatMessageReceived) typ() string { return onRTDTChatMsgRcvdNtfnType }
 
+const onRTDTAudioPktRcvdNtfnType = "rtdtaudiopktreceived"
+
+// OnRTDTAudioPacketReceived is called when the local client receives a speech
+// packet in an RTDT session.
+type OnRTDTAudioPacketReceived func(sessionRV zkidentity.ShortID, peerID rpc.RTDTPeerID, opusPacket []byte, ts uint32)
+
+func (OnRTDTAudioPacketReceived) typ() string { return onRTDTAudioPktRcvdNtfnType }
+
 const onRTDTAdminCookiesRcvdNtfnType = "rtdtadmincookiesrcv"
 
 // OnRTDTAdminCookiesReceived is called when the local client receives admin
@@ -1281,6 +1289,11 @@ func (nmgr *NotificationManager) notifyRTDTChatMsgReceived(sessionRV zkidentity.
 		visit(func(h OnRTDTChatMessageReceived) { h(sessionRV, pub, msg, ts) })
 }
 
+func (nmgr *NotificationManager) notifyRTDTAudioPacketReceived(sessionRV zkidentity.ShortID, peerID rpc.RTDTPeerID, opusPacket []byte, ts uint32) {
+	nmgr.handlers[onRTDTAudioPktRcvdNtfnType].(*handlersFor[OnRTDTAudioPacketReceived]).
+		visit(func(h OnRTDTAudioPacketReceived) { h(sessionRV, peerID, opusPacket, ts) })
+}
+
 func (nmgr *NotificationManager) notifyRTDTAdminCookiesReceived(ru *RemoteUser, sessionRV zkidentity.ShortID) {
 	nmgr.handlers[onRTDTAdminCookiesRcvdNtfnType].(*handlersFor[OnRTDTAdminCookiesReceived]).
 		visit(func(h OnRTDTAdminCookiesReceived) { h(ru, sessionRV) })
@@ -1371,6 +1384,7 @@ func NewNotificationManager() *NotificationManager {
 			onRTDTRemovedFromSessionNtfnType:    &handlersFor[OnRTDTRemovedFromSession]{},
 			onRTDTRotatedCookieNtfnType:         &handlersFor[OnRTDTRotatedCookie]{},
 			onRTDTChatMsgRcvdNtfnType:           &handlersFor[OnRTDTChatMessageReceived]{},
+			onRTDTAudioPktRcvdNtfnType:          &handlersFor[OnRTDTAudioPacketReceived]{},
 			onRTDTAdminCookiesRcvdNtfnType:      &handlersFor[OnRTDTAdminCookiesReceived]{},
 			onRTDTRTTCalculatedNtfnType:         &handlersFor[OnRTDTRTTCalculated]{},
 			onRTDTJoinedInstantCallNtfnType:     &handlersFor[OnRTDTJoinedInstantCall]{},

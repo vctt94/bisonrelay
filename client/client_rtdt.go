@@ -1350,6 +1350,7 @@ func (c *Client) rtdtAudioStreamHandler(sess *rtdtclient.Session,
 
 	// Send input data to stream (data gets copied by stream).
 	lp.ps.Input(plain.Data, plain.Timestamp)
+	c.ntfns.notifyRTDTAudioPacketReceived(sessRV, peerID, slices.Clone(plain.Data), plain.Timestamp)
 	return nil
 }
 
@@ -1770,6 +1771,16 @@ func (c *Client) KickFromLiveRTDTSession(sessRV *zkidentity.ShortID, target rpc.
 	}
 
 	return c.rtc.KickMember(c.ctx, liveSess.RTSess, target, banDuration)
+}
+
+// SendRTDTAudioPacket sends a raw speech/Opus packet to the given live RTDT session.
+func (c *Client) SendRTDTAudioPacket(ctx context.Context, sessRV *zkidentity.ShortID, opusPacket []byte, timestamp uint32) error {
+	liveSess := c.GetLiveRTSession(sessRV)
+	if liveSess == nil {
+		return errors.New("live session not found")
+	}
+
+	return liveSess.RTSess.SendSpeechPacket(ctx, opusPacket, timestamp)
 }
 
 // exitRTDTSessionAfterLeaving permanently exits an RTDT session after leaving

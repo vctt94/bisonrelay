@@ -192,6 +192,72 @@ service ContentService {
   rpc AckDownloadCompleted(AckRequest) returns (AckResponse);
 }
 
+/* RTDTService is the service to manage RTDT sessions and events. */
+service RTDTService {
+  /* ListSessions returns the RTDT sessions known by the local client. */
+  rpc ListSessions(ListRTDTSessionsRequest) returns (ListRTDTSessionsResponse);
+
+  /* GetSession returns details about a single RTDT session. */
+  rpc GetSession(GetRTDTSessionRequest) returns (GetRTDTSessionResponse);
+
+  /* CreateSession creates a long-lived RTDT session. */
+  rpc CreateSession(CreateRTDTSessionRequest) returns (CreateRTDTSessionResponse);
+
+  /* CreateInstantSession creates an instant/ephemeral RTDT session. */
+  rpc CreateInstantSession(CreateInstantRTDTSessionRequest) returns (CreateInstantRTDTSessionResponse);
+
+  /* InviteToSession invites one or more users to an RTDT session. */
+  rpc InviteToSession(InviteToRTDTSessionRequest) returns (InviteToRTDTSessionResponse);
+
+  /* AcceptInvite accepts a previously received RTDT invite. */
+  rpc AcceptInvite(AcceptRTDTSessionInviteRequest) returns (AcceptRTDTSessionInviteResponse);
+
+  /* CancelInvite cancels a previously received RTDT invite. */
+  rpc CancelInvite(CancelRTDTSessionInviteRequest) returns (CancelRTDTSessionInviteResponse);
+
+  /* JoinSession joins the live RTDT session on the RTDT server. */
+  rpc JoinSession(JoinLiveRTDTSessionRequest) returns (JoinLiveRTDTSessionResponse);
+
+  /* LeaveSession leaves the live RTDT session on the RTDT server. */
+  rpc LeaveSession(LeaveLiveRTDTSessionRequest) returns (LeaveLiveRTDTSessionResponse);
+
+  /* ExitSession permanently exits an RTDT session. */
+  rpc ExitSession(ExitRTDTSessionRequest) returns (ExitRTDTSessionResponse);
+
+  /* DissolveSession dissolves an RTDT session owned by the local client. */
+  rpc DissolveSession(DissolveRTDTSessionRequest) returns (DissolveRTDTSessionResponse);
+
+  /* SendChatMessage sends an RTDT chat message to a live session. */
+  rpc SendChatMessage(SendRTDTChatMessageRequest) returns (SendRTDTChatMessageResponse);
+
+  /* SendAudioPacket sends a raw RTDT speech/Opus packet to a live session. */
+  rpc SendAudioPacket(SendRTDTAudioPacketRequest) returns (SendRTDTAudioPacketResponse);
+
+  /* InvitesStream streams RTDT session invites received by the local client. */
+  rpc InvitesStream(RTDTInvitesStreamRequest) returns (stream ReceivedRTDTInvite);
+
+  /* AckReceivedInvites acks received RTDT invite events. */
+  rpc AckReceivedInvites(AckRequest) returns (AckResponse);
+
+  /* SessionUpdatesStream streams updates about RTDT sessions. */
+  rpc SessionUpdatesStream(RTDTSessionUpdatesStreamRequest) returns (stream RTDTSessionUpdatedEvent);
+
+  /* AckSessionUpdates acks received RTDT session update events. */
+  rpc AckSessionUpdates(AckRequest) returns (AckResponse);
+
+  /* ChatMessagesStream streams RTDT chat messages received by the local client. */
+  rpc ChatMessagesStream(RTDTChatMessagesStreamRequest) returns (stream RTDTChatMessageReceivedEvent);
+
+  /* AckChatMessages acks received RTDT chat message events. */
+  rpc AckChatMessages(AckRequest) returns (AckResponse);
+
+  /* AudioPacketsStream streams live RTDT speech/Opus packets.
+
+     This is a live-only stream: packets sent while disconnected are not
+     replayed. */
+  rpc AudioPacketsStream(RTDTAudioPacketsStreamRequest) returns (stream RTDTAudioPacketReceivedEvent);
+}
+
 /******************************************************************************
   *                           Messages
   *****************************************************************************/
@@ -760,6 +826,356 @@ message DownloadCompletedResponse {
   string disk_path = 4;
   /* file_metadata is the metadata about the file. */
   FileMetadata file_metadata = 5;
+}
+
+/* RTDTSessionMetadata is the metadata of an RTDT session. */
+message RTDTSessionMetadata {
+  /* generation is incremented on every session change. */
+  uint32 generation = 1;
+  /* session_rv is the unique session RV identifier. */
+  string session_rv = 2;
+  /* size is the maximum number of concurrent users in the session. */
+  uint32 size = 3;
+  /* description is the user-supplied description of the session. */
+  string description = 4;
+  /* owner is the user ID of the owner of the session. */
+  string owner = 5;
+  /* admins is the list of extra admin user IDs. */
+  repeated string admins = 6;
+  /* publishers is the list of session publishers. */
+  repeated RTDTSessionPublisher publishers = 7;
+  /* is_instant determines if this is an instant/ephemeral session. */
+  bool is_instant = 8;
+}
+
+/* RTDTSessionPublisher describes a publisher in an RTDT session. */
+message RTDTSessionPublisher {
+  /* publisher_id is the user ID of the publisher. */
+  string publisher_id = 1;
+  /* peer_id is the RTDT peer ID of the publisher. */
+  uint32 peer_id = 2;
+  /* alias is the nick/alias of the publisher. */
+  string alias = 3;
+}
+
+/* RTDTSessionMember describes a member in an RTDT session. */
+message RTDTSessionMember {
+  /* uid is the user ID of the member. */
+  string uid = 1;
+  /* peer_id is the RTDT peer ID reserved for the member. */
+  uint32 peer_id = 2;
+  /* tag is the invite tag used to track invitation responses. */
+  uint64 tag = 3;
+  /* sent_timestamp is when the invite was sent, in unix seconds. */
+  int64 sent_timestamp = 4;
+  /* publisher is true when the member is allowed to publish. */
+  bool publisher = 5;
+  /* accepted is true when the member accepted the invite. */
+  bool accepted = 6;
+  /* accepted_timestamp is when the member accepted the invite, in unix seconds. */
+  int64 accepted_timestamp = 7;
+  /* is_admin is true when the member is currently an admin of the session. */
+  bool is_admin = 8;
+  /* is_owner is true when the member is the owner of the session. */
+  bool is_owner = 9;
+}
+
+/* RTDTLivePeer describes a live RTDT peer. */
+message RTDTLivePeer {
+  /* peer_id is the RTDT peer ID of the live peer. */
+  uint32 peer_id = 1;
+  /* has_sound_stream is true when the peer currently has a sound stream. */
+  bool has_sound_stream = 2;
+  /* has_sound is true when sound is currently detected for the peer. */
+  bool has_sound = 3;
+  /* volume_gain is the per-peer playback gain in dB. */
+  double volume_gain = 4;
+  /* buffered_count is the number of audio packets currently buffered. */
+  int64 buffered_count = 5;
+}
+
+/* RTDTLiveSession stores live session information. */
+message RTDTLiveSession {
+  /* hot_audio is true when the local client currently has hot audio on this session. */
+  bool hot_audio = 1;
+  /* peers is the list of live peers currently known in the session. */
+  repeated RTDTLivePeer peers = 2;
+}
+
+/* RTDTSession is the full RTDT session information exposed by clientrpc. */
+message RTDTSession {
+  /* metadata is the RTDT session metadata. */
+  RTDTSessionMetadata metadata = 1;
+  /* local_peer_id is the RTDT peer ID of the local client. */
+  uint32 local_peer_id = 2;
+  /* next_peer_id is the next peer ID to be assigned by admins/owners. */
+  uint32 next_peer_id = 3;
+  /* members is the list of known members of the session. */
+  repeated RTDTSessionMember members = 4;
+  /* gc is the associated GC ID, when this session is linked to a GC. */
+  string gc = 5;
+  /* local_is_admin is true when the local client can admin the session. */
+  bool local_is_admin = 6;
+  /* local_is_publisher is true when the local client may publish to the session. */
+  bool local_is_publisher = 7;
+  /* live stores current live-session information when the session is joined. */
+  RTDTLiveSession live = 8;
+}
+
+/* ListRTDTSessionsRequest requests the list of RTDT sessions. */
+message ListRTDTSessionsRequest {
+}
+
+/* ListRTDTSessionsResponse returns the list of RTDT sessions. */
+message ListRTDTSessionsResponse {
+  /* sessions is the list of known RTDT sessions. */
+  repeated RTDTSession sessions = 1;
+}
+
+/* GetRTDTSessionRequest requests a single RTDT session by RV. */
+message GetRTDTSessionRequest {
+  /* session_rv is the hex-encoded session RV. */
+  string session_rv = 1;
+}
+
+/* GetRTDTSessionResponse returns a single RTDT session. */
+message GetRTDTSessionResponse {
+  /* session is the requested RTDT session. */
+  RTDTSession session = 1;
+}
+
+/* CreateRTDTSessionRequest requests creating a new RTDT session. */
+message CreateRTDTSessionRequest {
+  /* size is the maximum number of concurrent users in the session. */
+  uint32 size = 1;
+  /* description is the session description. */
+  string description = 2;
+}
+
+/* CreateRTDTSessionResponse returns the created RTDT session. */
+message CreateRTDTSessionResponse {
+  /* session is the created RTDT session. */
+  RTDTSession session = 1;
+}
+
+/* CreateInstantRTDTSessionRequest requests creating a new instant RTDT session. */
+message CreateInstantRTDTSessionRequest {
+  /* users is the list of users to invite, by nick/alias/id. */
+  repeated string users = 1;
+}
+
+/* CreateInstantRTDTSessionResponse returns the created instant RTDT session. */
+message CreateInstantRTDTSessionResponse {
+  /* session is the created RTDT session. */
+  RTDTSession session = 1;
+}
+
+/* InviteToRTDTSessionRequest requests inviting users to an RTDT session. */
+message InviteToRTDTSessionRequest {
+  /* session_rv is the hex-encoded session RV. */
+  string session_rv = 1;
+  /* allowed_as_publisher determines if invitees can publish to the session. */
+  bool allowed_as_publisher = 2;
+  /* users is the list of users to invite, by nick/alias/id. */
+  repeated string users = 3;
+}
+
+/* InviteToRTDTSessionResponse is the response to an invite request. */
+message InviteToRTDTSessionResponse {
+}
+
+/* AcceptRTDTSessionInviteRequest requests accepting a received RTDT invite. */
+message AcceptRTDTSessionInviteRequest {
+  /* inviter is the inviter user, by nick/alias/id. */
+  string inviter = 1;
+  /* session_rv is the hex-encoded session RV. */
+  string session_rv = 2;
+  /* accept_as_publisher determines if the local client should publish to the session. */
+  bool accept_as_publisher = 3;
+}
+
+/* AcceptRTDTSessionInviteResponse is the response to an accept invite request. */
+message AcceptRTDTSessionInviteResponse {
+}
+
+/* CancelRTDTSessionInviteRequest requests canceling a received RTDT invite. */
+message CancelRTDTSessionInviteRequest {
+  /* inviter is the inviter user, by nick/alias/id. */
+  string inviter = 1;
+  /* session_rv is the hex-encoded session RV. */
+  string session_rv = 2;
+}
+
+/* CancelRTDTSessionInviteResponse is the response to a cancel invite request. */
+message CancelRTDTSessionInviteResponse {
+}
+
+/* JoinLiveRTDTSessionRequest requests joining the live RTDT session. */
+message JoinLiveRTDTSessionRequest {
+  /* session_rv is the hex-encoded session RV. */
+  string session_rv = 1;
+}
+
+/* JoinLiveRTDTSessionResponse is the response to a join live session request. */
+message JoinLiveRTDTSessionResponse {
+}
+
+/* LeaveLiveRTDTSessionRequest requests leaving the live RTDT session. */
+message LeaveLiveRTDTSessionRequest {
+  /* session_rv is the hex-encoded session RV. */
+  string session_rv = 1;
+}
+
+/* LeaveLiveRTDTSessionResponse is the response to a leave live session request. */
+message LeaveLiveRTDTSessionResponse {
+}
+
+/* ExitRTDTSessionRequest requests permanently exiting an RTDT session. */
+message ExitRTDTSessionRequest {
+  /* session_rv is the hex-encoded session RV. */
+  string session_rv = 1;
+}
+
+/* ExitRTDTSessionResponse is the response to an exit session request. */
+message ExitRTDTSessionResponse {
+}
+
+/* DissolveRTDTSessionRequest requests dissolving an RTDT session. */
+message DissolveRTDTSessionRequest {
+  /* session_rv is the hex-encoded session RV. */
+  string session_rv = 1;
+}
+
+/* DissolveRTDTSessionResponse is the response to a dissolve request. */
+message DissolveRTDTSessionResponse {
+}
+
+/* SendRTDTChatMessageRequest requests sending a chat message in a live RTDT session. */
+message SendRTDTChatMessageRequest {
+  /* session_rv is the hex-encoded session RV. */
+  string session_rv = 1;
+  /* message is the chat message to send. */
+  string message = 2;
+}
+
+/* SendRTDTChatMessageResponse is the response to an RTDT chat message request. */
+message SendRTDTChatMessageResponse {
+}
+
+/* SendRTDTAudioPacketRequest requests sending a raw RTDT speech/Opus packet to
+   a live RTDT session. */
+message SendRTDTAudioPacketRequest {
+  /* session_rv is the hex-encoded session RV. */
+  string session_rv = 1;
+  /* timestamp is the packet timestamp relative to the session's media stream. */
+  uint32 timestamp = 2;
+  /* opus_packet is the raw Opus packet payload. */
+  bytes opus_packet = 3;
+}
+
+/* SendRTDTAudioPacketResponse is the response to an RTDT audio packet request. */
+message SendRTDTAudioPacketResponse {
+}
+
+/* RTDTSessionInvite is the information about an RTDT session invite. */
+message RTDTSessionInvite {
+  /* session_rv is the hex-encoded session RV. */
+  string session_rv = 1;
+  /* size is the maximum number of concurrent users in the session. */
+  uint32 size = 2;
+  /* description is the session description. */
+  string description = 3;
+  /* allowed_as_publisher determines if the local client may publish to the session. */
+  bool allowed_as_publisher = 4;
+  /* peer_id is the RTDT peer ID assigned to the local client. */
+  uint32 peer_id = 5;
+  /* gc is the associated GC ID, when the invite refers to a GC session. */
+  string gc = 6;
+  /* is_instant determines if the invite refers to an instant/ephemeral session. */
+  bool is_instant = 7;
+}
+
+/* RTDTInvitesStreamRequest requests a stream of RTDT invite notifications. */
+message RTDTInvitesStreamRequest {
+  /* unacked_from specifies the last processed RTDT invite event. */
+  uint64 unacked_from = 1;
+}
+
+/* ReceivedRTDTInvite is one received RTDT invite event. */
+message ReceivedRTDTInvite {
+  /* sequence_id is an opaque sequential ID. */
+  uint64 sequence_id = 1;
+  /* inviter_uid is the user ID of the inviter. */
+  string inviter_uid = 2;
+  /* inviter_nick is the nick of the inviter. */
+  string inviter_nick = 3;
+  /* timestamp_ms is when the invite was received, in unix milliseconds. */
+  int64 timestamp_ms = 4;
+  /* invite is the invite details. */
+  RTDTSessionInvite invite = 5;
+}
+
+/* RTDTSessionUpdatesStreamRequest requests a stream of RTDT session updates. */
+message RTDTSessionUpdatesStreamRequest {
+  /* unacked_from specifies the last processed RTDT session update event. */
+  uint64 unacked_from = 1;
+}
+
+/* RTDTSessionUpdatedEvent is one RTDT session update event. */
+message RTDTSessionUpdatedEvent {
+  /* sequence_id is an opaque sequential ID. */
+  uint64 sequence_id = 1;
+  /* updater_uid is the user ID of the remote updater. */
+  string updater_uid = 2;
+  /* updater_nick is the nick of the remote updater. */
+  string updater_nick = 3;
+  /* session_rv is the hex-encoded session RV. */
+  string session_rv = 4;
+  /* session is the full latest session state after the update. */
+  RTDTSession session = 5;
+  /* initial_join is true when the update caused the first full local join into the session. */
+  bool initial_join = 6;
+}
+
+/* RTDTChatMessagesStreamRequest requests a stream of RTDT chat messages. */
+message RTDTChatMessagesStreamRequest {
+  /* unacked_from specifies the last processed RTDT chat message event. */
+  uint64 unacked_from = 1;
+}
+
+/* RTDTChatMessageReceivedEvent is one RTDT chat message event. */
+message RTDTChatMessageReceivedEvent {
+  /* sequence_id is an opaque sequential ID. */
+  uint64 sequence_id = 1;
+  /* session_rv is the hex-encoded session RV. */
+  string session_rv = 2;
+  /* publisher is the publisher that sent the message. */
+  RTDTSessionPublisher publisher = 3;
+  /* message is the received chat message. */
+  string message = 4;
+  /* timestamp is the stream-level timestamp of the message. */
+  uint32 timestamp = 5;
+}
+
+/* RTDTAudioPacketsStreamRequest requests a live stream of RTDT audio packets.
+
+   If session_rv is set, only audio packets from that RTDT session are sent. */
+message RTDTAudioPacketsStreamRequest {
+  /* session_rv optionally filters events to a specific hex-encoded session RV. */
+  string session_rv = 1;
+}
+
+/* RTDTAudioPacketReceivedEvent is one RTDT speech/Opus packet received by the
+   local client. */
+message RTDTAudioPacketReceivedEvent {
+  /* session_rv is the hex-encoded session RV. */
+  string session_rv = 1;
+  /* peer_id is the RTDT peer ID of the sender. */
+  uint32 peer_id = 2;
+  /* timestamp is the packet timestamp relative to the sender's media stream. */
+  uint32 timestamp = 3;
+  /* opus_packet is the raw Opus packet payload. */
+  bytes opus_packet = 4;
 }
 
 

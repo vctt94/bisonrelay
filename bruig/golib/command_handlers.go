@@ -979,6 +979,16 @@ func handleInitClient(handle uint32, args initClient) error {
 		if err != nil {
 			return err
 		}
+
+		rtdtServerCfg := rpcserver.RTDTServerCfg{
+			Log:               logBknd.logger("RPCS"),
+			Client:            c,
+			RootReplayMsgLogs: filepath.Join(args.DBRoot, "replaymsglog"),
+		}
+		err = rpcServer.InitRTDTService(rtdtServerCfg)
+		if err != nil {
+			return err
+		}
 	}
 
 	var cancel func()

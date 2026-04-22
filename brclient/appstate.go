@@ -4482,6 +4482,16 @@ func newAppState(sendMsg func(tea.Msg), lndLogLines *sloglinesbuffer.Buffer,
 		if err != nil {
 			return nil, err
 		}
+
+		rtdtServerCfg := rpcserver.RTDTServerCfg{
+			Log:               logBknd.logger("RPCS"),
+			Client:            c,
+			RootReplayMsgLogs: filepath.Join(args.DBRoot, "replaymsglog"),
+		}
+		err = rpcServer.InitRTDTService(rtdtServerCfg)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Bind the selected upstream resource provider.

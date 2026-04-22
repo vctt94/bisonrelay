@@ -1491,6 +1491,620 @@ func ContentServiceDefn() ServiceDefn {
 	}
 }
 
+// RTDTServiceClient is the client API for RTDTService service.
+type RTDTServiceClient interface {
+	// ListSessions returns the RTDT sessions known by the local client.
+	ListSessions(ctx context.Context, in *ListRTDTSessionsRequest, out *ListRTDTSessionsResponse) error
+	// GetSession returns details about a single RTDT session.
+	GetSession(ctx context.Context, in *GetRTDTSessionRequest, out *GetRTDTSessionResponse) error
+	// CreateSession creates a long-lived RTDT session.
+	CreateSession(ctx context.Context, in *CreateRTDTSessionRequest, out *CreateRTDTSessionResponse) error
+	// CreateInstantSession creates an instant/ephemeral RTDT session.
+	CreateInstantSession(ctx context.Context, in *CreateInstantRTDTSessionRequest, out *CreateInstantRTDTSessionResponse) error
+	// InviteToSession invites one or more users to an RTDT session.
+	InviteToSession(ctx context.Context, in *InviteToRTDTSessionRequest, out *InviteToRTDTSessionResponse) error
+	// AcceptInvite accepts a previously received RTDT invite.
+	AcceptInvite(ctx context.Context, in *AcceptRTDTSessionInviteRequest, out *AcceptRTDTSessionInviteResponse) error
+	// CancelInvite cancels a previously received RTDT invite.
+	CancelInvite(ctx context.Context, in *CancelRTDTSessionInviteRequest, out *CancelRTDTSessionInviteResponse) error
+	// JoinSession joins the live RTDT session on the RTDT server.
+	JoinSession(ctx context.Context, in *JoinLiveRTDTSessionRequest, out *JoinLiveRTDTSessionResponse) error
+	// LeaveSession leaves the live RTDT session on the RTDT server.
+	LeaveSession(ctx context.Context, in *LeaveLiveRTDTSessionRequest, out *LeaveLiveRTDTSessionResponse) error
+	// ExitSession permanently exits an RTDT session.
+	ExitSession(ctx context.Context, in *ExitRTDTSessionRequest, out *ExitRTDTSessionResponse) error
+	// DissolveSession dissolves an RTDT session owned by the local client.
+	DissolveSession(ctx context.Context, in *DissolveRTDTSessionRequest, out *DissolveRTDTSessionResponse) error
+	// SendChatMessage sends an RTDT chat message to a live session.
+	SendChatMessage(ctx context.Context, in *SendRTDTChatMessageRequest, out *SendRTDTChatMessageResponse) error
+	// SendAudioPacket sends a raw RTDT speech/Opus packet to a live session.
+	SendAudioPacket(ctx context.Context, in *SendRTDTAudioPacketRequest, out *SendRTDTAudioPacketResponse) error
+	// InvitesStream streams RTDT session invites received by the local client.
+	InvitesStream(ctx context.Context, in *RTDTInvitesStreamRequest) (RTDTService_InvitesStreamClient, error)
+	// AckReceivedInvites acks received RTDT invite events.
+	AckReceivedInvites(ctx context.Context, in *AckRequest, out *AckResponse) error
+	// SessionUpdatesStream streams updates about RTDT sessions.
+	SessionUpdatesStream(ctx context.Context, in *RTDTSessionUpdatesStreamRequest) (RTDTService_SessionUpdatesStreamClient, error)
+	// AckSessionUpdates acks received RTDT session update events.
+	AckSessionUpdates(ctx context.Context, in *AckRequest, out *AckResponse) error
+	// ChatMessagesStream streams RTDT chat messages received by the local client.
+	ChatMessagesStream(ctx context.Context, in *RTDTChatMessagesStreamRequest) (RTDTService_ChatMessagesStreamClient, error)
+	// AckChatMessages acks received RTDT chat message events.
+	AckChatMessages(ctx context.Context, in *AckRequest, out *AckResponse) error
+	// AudioPacketsStream streams live RTDT speech/Opus packets.
+	//
+	// This is a live-only stream: packets sent while disconnected are not
+	// replayed.
+	AudioPacketsStream(ctx context.Context, in *RTDTAudioPacketsStreamRequest) (RTDTService_AudioPacketsStreamClient, error)
+}
+
+type client_RTDTService struct {
+	c    ClientConn
+	defn ServiceDefn
+}
+
+func (c *client_RTDTService) ListSessions(ctx context.Context, in *ListRTDTSessionsRequest, out *ListRTDTSessionsResponse) error {
+	const method = "ListSessions"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+func (c *client_RTDTService) GetSession(ctx context.Context, in *GetRTDTSessionRequest, out *GetRTDTSessionResponse) error {
+	const method = "GetSession"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+func (c *client_RTDTService) CreateSession(ctx context.Context, in *CreateRTDTSessionRequest, out *CreateRTDTSessionResponse) error {
+	const method = "CreateSession"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+func (c *client_RTDTService) CreateInstantSession(ctx context.Context, in *CreateInstantRTDTSessionRequest, out *CreateInstantRTDTSessionResponse) error {
+	const method = "CreateInstantSession"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+func (c *client_RTDTService) InviteToSession(ctx context.Context, in *InviteToRTDTSessionRequest, out *InviteToRTDTSessionResponse) error {
+	const method = "InviteToSession"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+func (c *client_RTDTService) AcceptInvite(ctx context.Context, in *AcceptRTDTSessionInviteRequest, out *AcceptRTDTSessionInviteResponse) error {
+	const method = "AcceptInvite"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+func (c *client_RTDTService) CancelInvite(ctx context.Context, in *CancelRTDTSessionInviteRequest, out *CancelRTDTSessionInviteResponse) error {
+	const method = "CancelInvite"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+func (c *client_RTDTService) JoinSession(ctx context.Context, in *JoinLiveRTDTSessionRequest, out *JoinLiveRTDTSessionResponse) error {
+	const method = "JoinSession"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+func (c *client_RTDTService) LeaveSession(ctx context.Context, in *LeaveLiveRTDTSessionRequest, out *LeaveLiveRTDTSessionResponse) error {
+	const method = "LeaveSession"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+func (c *client_RTDTService) ExitSession(ctx context.Context, in *ExitRTDTSessionRequest, out *ExitRTDTSessionResponse) error {
+	const method = "ExitSession"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+func (c *client_RTDTService) DissolveSession(ctx context.Context, in *DissolveRTDTSessionRequest, out *DissolveRTDTSessionResponse) error {
+	const method = "DissolveSession"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+func (c *client_RTDTService) SendChatMessage(ctx context.Context, in *SendRTDTChatMessageRequest, out *SendRTDTChatMessageResponse) error {
+	const method = "SendChatMessage"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+func (c *client_RTDTService) SendAudioPacket(ctx context.Context, in *SendRTDTAudioPacketRequest, out *SendRTDTAudioPacketResponse) error {
+	const method = "SendAudioPacket"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+type RTDTService_InvitesStreamClient interface {
+	Recv(*ReceivedRTDTInvite) error
+}
+
+func (c *client_RTDTService) InvitesStream(ctx context.Context, in *RTDTInvitesStreamRequest) (RTDTService_InvitesStreamClient, error) {
+	const method = "InvitesStream"
+	inner, err := c.defn.Methods[method].ClientStreamHandler(c.c, ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return streamerImpl[*ReceivedRTDTInvite]{c: inner}, nil
+}
+
+func (c *client_RTDTService) AckReceivedInvites(ctx context.Context, in *AckRequest, out *AckResponse) error {
+	const method = "AckReceivedInvites"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+type RTDTService_SessionUpdatesStreamClient interface {
+	Recv(*RTDTSessionUpdatedEvent) error
+}
+
+func (c *client_RTDTService) SessionUpdatesStream(ctx context.Context, in *RTDTSessionUpdatesStreamRequest) (RTDTService_SessionUpdatesStreamClient, error) {
+	const method = "SessionUpdatesStream"
+	inner, err := c.defn.Methods[method].ClientStreamHandler(c.c, ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return streamerImpl[*RTDTSessionUpdatedEvent]{c: inner}, nil
+}
+
+func (c *client_RTDTService) AckSessionUpdates(ctx context.Context, in *AckRequest, out *AckResponse) error {
+	const method = "AckSessionUpdates"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+type RTDTService_ChatMessagesStreamClient interface {
+	Recv(*RTDTChatMessageReceivedEvent) error
+}
+
+func (c *client_RTDTService) ChatMessagesStream(ctx context.Context, in *RTDTChatMessagesStreamRequest) (RTDTService_ChatMessagesStreamClient, error) {
+	const method = "ChatMessagesStream"
+	inner, err := c.defn.Methods[method].ClientStreamHandler(c.c, ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return streamerImpl[*RTDTChatMessageReceivedEvent]{c: inner}, nil
+}
+
+func (c *client_RTDTService) AckChatMessages(ctx context.Context, in *AckRequest, out *AckResponse) error {
+	const method = "AckChatMessages"
+	return c.defn.Methods[method].ClientHandler(c.c, ctx, in, out)
+}
+
+type RTDTService_AudioPacketsStreamClient interface {
+	Recv(*RTDTAudioPacketReceivedEvent) error
+}
+
+func (c *client_RTDTService) AudioPacketsStream(ctx context.Context, in *RTDTAudioPacketsStreamRequest) (RTDTService_AudioPacketsStreamClient, error) {
+	const method = "AudioPacketsStream"
+	inner, err := c.defn.Methods[method].ClientStreamHandler(c.c, ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return streamerImpl[*RTDTAudioPacketReceivedEvent]{c: inner}, nil
+}
+
+func NewRTDTServiceClient(c ClientConn) RTDTServiceClient {
+	return &client_RTDTService{c: c, defn: RTDTServiceDefn()}
+}
+
+// RTDTServiceServer is the server API for RTDTService service.
+type RTDTServiceServer interface {
+	// ListSessions returns the RTDT sessions known by the local client.
+	ListSessions(context.Context, *ListRTDTSessionsRequest, *ListRTDTSessionsResponse) error
+	// GetSession returns details about a single RTDT session.
+	GetSession(context.Context, *GetRTDTSessionRequest, *GetRTDTSessionResponse) error
+	// CreateSession creates a long-lived RTDT session.
+	CreateSession(context.Context, *CreateRTDTSessionRequest, *CreateRTDTSessionResponse) error
+	// CreateInstantSession creates an instant/ephemeral RTDT session.
+	CreateInstantSession(context.Context, *CreateInstantRTDTSessionRequest, *CreateInstantRTDTSessionResponse) error
+	// InviteToSession invites one or more users to an RTDT session.
+	InviteToSession(context.Context, *InviteToRTDTSessionRequest, *InviteToRTDTSessionResponse) error
+	// AcceptInvite accepts a previously received RTDT invite.
+	AcceptInvite(context.Context, *AcceptRTDTSessionInviteRequest, *AcceptRTDTSessionInviteResponse) error
+	// CancelInvite cancels a previously received RTDT invite.
+	CancelInvite(context.Context, *CancelRTDTSessionInviteRequest, *CancelRTDTSessionInviteResponse) error
+	// JoinSession joins the live RTDT session on the RTDT server.
+	JoinSession(context.Context, *JoinLiveRTDTSessionRequest, *JoinLiveRTDTSessionResponse) error
+	// LeaveSession leaves the live RTDT session on the RTDT server.
+	LeaveSession(context.Context, *LeaveLiveRTDTSessionRequest, *LeaveLiveRTDTSessionResponse) error
+	// ExitSession permanently exits an RTDT session.
+	ExitSession(context.Context, *ExitRTDTSessionRequest, *ExitRTDTSessionResponse) error
+	// DissolveSession dissolves an RTDT session owned by the local client.
+	DissolveSession(context.Context, *DissolveRTDTSessionRequest, *DissolveRTDTSessionResponse) error
+	// SendChatMessage sends an RTDT chat message to a live session.
+	SendChatMessage(context.Context, *SendRTDTChatMessageRequest, *SendRTDTChatMessageResponse) error
+	// SendAudioPacket sends a raw RTDT speech/Opus packet to a live session.
+	SendAudioPacket(context.Context, *SendRTDTAudioPacketRequest, *SendRTDTAudioPacketResponse) error
+	// InvitesStream streams RTDT session invites received by the local client.
+	InvitesStream(context.Context, *RTDTInvitesStreamRequest, RTDTService_InvitesStreamServer) error
+	// AckReceivedInvites acks received RTDT invite events.
+	AckReceivedInvites(context.Context, *AckRequest, *AckResponse) error
+	// SessionUpdatesStream streams updates about RTDT sessions.
+	SessionUpdatesStream(context.Context, *RTDTSessionUpdatesStreamRequest, RTDTService_SessionUpdatesStreamServer) error
+	// AckSessionUpdates acks received RTDT session update events.
+	AckSessionUpdates(context.Context, *AckRequest, *AckResponse) error
+	// ChatMessagesStream streams RTDT chat messages received by the local client.
+	ChatMessagesStream(context.Context, *RTDTChatMessagesStreamRequest, RTDTService_ChatMessagesStreamServer) error
+	// AckChatMessages acks received RTDT chat message events.
+	AckChatMessages(context.Context, *AckRequest, *AckResponse) error
+	// AudioPacketsStream streams live RTDT speech/Opus packets.
+	//
+	// This is a live-only stream: packets sent while disconnected are not
+	// replayed.
+	AudioPacketsStream(context.Context, *RTDTAudioPacketsStreamRequest, RTDTService_AudioPacketsStreamServer) error
+}
+
+type RTDTService_InvitesStreamServer interface {
+	Send(m *ReceivedRTDTInvite) error
+}
+
+type RTDTService_SessionUpdatesStreamServer interface {
+	Send(m *RTDTSessionUpdatedEvent) error
+}
+
+type RTDTService_ChatMessagesStreamServer interface {
+	Send(m *RTDTChatMessageReceivedEvent) error
+}
+
+type RTDTService_AudioPacketsStreamServer interface {
+	Send(m *RTDTAudioPacketReceivedEvent) error
+}
+
+func RTDTServiceDefn() ServiceDefn {
+	return ServiceDefn{
+		Name: "RTDTService",
+		Methods: map[string]MethodDefn{
+			"ListSessions": {
+				IsStreaming: false,
+				NewRequest:  func() proto.Message { return new(ListRTDTSessionsRequest) },
+				NewResponse: func() proto.Message { return new(ListRTDTSessionsResponse) },
+				RequestDefn: func() protoreflect.MessageDescriptor { return new(ListRTDTSessionsRequest).ProtoReflect().Descriptor() },
+				ResponseDefn: func() protoreflect.MessageDescriptor {
+					return new(ListRTDTSessionsResponse).ProtoReflect().Descriptor()
+				},
+				Help: "ListSessions returns the RTDT sessions known by the local client.",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(RTDTServiceServer).ListSessions(ctx, request.(*ListRTDTSessionsRequest), response.(*ListRTDTSessionsResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "RTDTService.ListSessions"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"GetSession": {
+				IsStreaming:  false,
+				NewRequest:   func() proto.Message { return new(GetRTDTSessionRequest) },
+				NewResponse:  func() proto.Message { return new(GetRTDTSessionResponse) },
+				RequestDefn:  func() protoreflect.MessageDescriptor { return new(GetRTDTSessionRequest).ProtoReflect().Descriptor() },
+				ResponseDefn: func() protoreflect.MessageDescriptor { return new(GetRTDTSessionResponse).ProtoReflect().Descriptor() },
+				Help:         "GetSession returns details about a single RTDT session.",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(RTDTServiceServer).GetSession(ctx, request.(*GetRTDTSessionRequest), response.(*GetRTDTSessionResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "RTDTService.GetSession"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"CreateSession": {
+				IsStreaming: false,
+				NewRequest:  func() proto.Message { return new(CreateRTDTSessionRequest) },
+				NewResponse: func() proto.Message { return new(CreateRTDTSessionResponse) },
+				RequestDefn: func() protoreflect.MessageDescriptor {
+					return new(CreateRTDTSessionRequest).ProtoReflect().Descriptor()
+				},
+				ResponseDefn: func() protoreflect.MessageDescriptor {
+					return new(CreateRTDTSessionResponse).ProtoReflect().Descriptor()
+				},
+				Help: "CreateSession creates a long-lived RTDT session.",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(RTDTServiceServer).CreateSession(ctx, request.(*CreateRTDTSessionRequest), response.(*CreateRTDTSessionResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "RTDTService.CreateSession"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"CreateInstantSession": {
+				IsStreaming: false,
+				NewRequest:  func() proto.Message { return new(CreateInstantRTDTSessionRequest) },
+				NewResponse: func() proto.Message { return new(CreateInstantRTDTSessionResponse) },
+				RequestDefn: func() protoreflect.MessageDescriptor {
+					return new(CreateInstantRTDTSessionRequest).ProtoReflect().Descriptor()
+				},
+				ResponseDefn: func() protoreflect.MessageDescriptor {
+					return new(CreateInstantRTDTSessionResponse).ProtoReflect().Descriptor()
+				},
+				Help: "CreateInstantSession creates an instant/ephemeral RTDT session.",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(RTDTServiceServer).CreateInstantSession(ctx, request.(*CreateInstantRTDTSessionRequest), response.(*CreateInstantRTDTSessionResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "RTDTService.CreateInstantSession"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"InviteToSession": {
+				IsStreaming: false,
+				NewRequest:  func() proto.Message { return new(InviteToRTDTSessionRequest) },
+				NewResponse: func() proto.Message { return new(InviteToRTDTSessionResponse) },
+				RequestDefn: func() protoreflect.MessageDescriptor {
+					return new(InviteToRTDTSessionRequest).ProtoReflect().Descriptor()
+				},
+				ResponseDefn: func() protoreflect.MessageDescriptor {
+					return new(InviteToRTDTSessionResponse).ProtoReflect().Descriptor()
+				},
+				Help: "InviteToSession invites one or more users to an RTDT session.",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(RTDTServiceServer).InviteToSession(ctx, request.(*InviteToRTDTSessionRequest), response.(*InviteToRTDTSessionResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "RTDTService.InviteToSession"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"AcceptInvite": {
+				IsStreaming: false,
+				NewRequest:  func() proto.Message { return new(AcceptRTDTSessionInviteRequest) },
+				NewResponse: func() proto.Message { return new(AcceptRTDTSessionInviteResponse) },
+				RequestDefn: func() protoreflect.MessageDescriptor {
+					return new(AcceptRTDTSessionInviteRequest).ProtoReflect().Descriptor()
+				},
+				ResponseDefn: func() protoreflect.MessageDescriptor {
+					return new(AcceptRTDTSessionInviteResponse).ProtoReflect().Descriptor()
+				},
+				Help: "AcceptInvite accepts a previously received RTDT invite.",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(RTDTServiceServer).AcceptInvite(ctx, request.(*AcceptRTDTSessionInviteRequest), response.(*AcceptRTDTSessionInviteResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "RTDTService.AcceptInvite"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"CancelInvite": {
+				IsStreaming: false,
+				NewRequest:  func() proto.Message { return new(CancelRTDTSessionInviteRequest) },
+				NewResponse: func() proto.Message { return new(CancelRTDTSessionInviteResponse) },
+				RequestDefn: func() protoreflect.MessageDescriptor {
+					return new(CancelRTDTSessionInviteRequest).ProtoReflect().Descriptor()
+				},
+				ResponseDefn: func() protoreflect.MessageDescriptor {
+					return new(CancelRTDTSessionInviteResponse).ProtoReflect().Descriptor()
+				},
+				Help: "CancelInvite cancels a previously received RTDT invite.",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(RTDTServiceServer).CancelInvite(ctx, request.(*CancelRTDTSessionInviteRequest), response.(*CancelRTDTSessionInviteResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "RTDTService.CancelInvite"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"JoinSession": {
+				IsStreaming: false,
+				NewRequest:  func() proto.Message { return new(JoinLiveRTDTSessionRequest) },
+				NewResponse: func() proto.Message { return new(JoinLiveRTDTSessionResponse) },
+				RequestDefn: func() protoreflect.MessageDescriptor {
+					return new(JoinLiveRTDTSessionRequest).ProtoReflect().Descriptor()
+				},
+				ResponseDefn: func() protoreflect.MessageDescriptor {
+					return new(JoinLiveRTDTSessionResponse).ProtoReflect().Descriptor()
+				},
+				Help: "JoinSession joins the live RTDT session on the RTDT server.",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(RTDTServiceServer).JoinSession(ctx, request.(*JoinLiveRTDTSessionRequest), response.(*JoinLiveRTDTSessionResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "RTDTService.JoinSession"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"LeaveSession": {
+				IsStreaming: false,
+				NewRequest:  func() proto.Message { return new(LeaveLiveRTDTSessionRequest) },
+				NewResponse: func() proto.Message { return new(LeaveLiveRTDTSessionResponse) },
+				RequestDefn: func() protoreflect.MessageDescriptor {
+					return new(LeaveLiveRTDTSessionRequest).ProtoReflect().Descriptor()
+				},
+				ResponseDefn: func() protoreflect.MessageDescriptor {
+					return new(LeaveLiveRTDTSessionResponse).ProtoReflect().Descriptor()
+				},
+				Help: "LeaveSession leaves the live RTDT session on the RTDT server.",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(RTDTServiceServer).LeaveSession(ctx, request.(*LeaveLiveRTDTSessionRequest), response.(*LeaveLiveRTDTSessionResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "RTDTService.LeaveSession"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"ExitSession": {
+				IsStreaming:  false,
+				NewRequest:   func() proto.Message { return new(ExitRTDTSessionRequest) },
+				NewResponse:  func() proto.Message { return new(ExitRTDTSessionResponse) },
+				RequestDefn:  func() protoreflect.MessageDescriptor { return new(ExitRTDTSessionRequest).ProtoReflect().Descriptor() },
+				ResponseDefn: func() protoreflect.MessageDescriptor { return new(ExitRTDTSessionResponse).ProtoReflect().Descriptor() },
+				Help:         "ExitSession permanently exits an RTDT session.",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(RTDTServiceServer).ExitSession(ctx, request.(*ExitRTDTSessionRequest), response.(*ExitRTDTSessionResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "RTDTService.ExitSession"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"DissolveSession": {
+				IsStreaming: false,
+				NewRequest:  func() proto.Message { return new(DissolveRTDTSessionRequest) },
+				NewResponse: func() proto.Message { return new(DissolveRTDTSessionResponse) },
+				RequestDefn: func() protoreflect.MessageDescriptor {
+					return new(DissolveRTDTSessionRequest).ProtoReflect().Descriptor()
+				},
+				ResponseDefn: func() protoreflect.MessageDescriptor {
+					return new(DissolveRTDTSessionResponse).ProtoReflect().Descriptor()
+				},
+				Help: "DissolveSession dissolves an RTDT session owned by the local client.",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(RTDTServiceServer).DissolveSession(ctx, request.(*DissolveRTDTSessionRequest), response.(*DissolveRTDTSessionResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "RTDTService.DissolveSession"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"SendChatMessage": {
+				IsStreaming: false,
+				NewRequest:  func() proto.Message { return new(SendRTDTChatMessageRequest) },
+				NewResponse: func() proto.Message { return new(SendRTDTChatMessageResponse) },
+				RequestDefn: func() protoreflect.MessageDescriptor {
+					return new(SendRTDTChatMessageRequest).ProtoReflect().Descriptor()
+				},
+				ResponseDefn: func() protoreflect.MessageDescriptor {
+					return new(SendRTDTChatMessageResponse).ProtoReflect().Descriptor()
+				},
+				Help: "SendChatMessage sends an RTDT chat message to a live session.",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(RTDTServiceServer).SendChatMessage(ctx, request.(*SendRTDTChatMessageRequest), response.(*SendRTDTChatMessageResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "RTDTService.SendChatMessage"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"SendAudioPacket": {
+				IsStreaming: false,
+				NewRequest:  func() proto.Message { return new(SendRTDTAudioPacketRequest) },
+				NewResponse: func() proto.Message { return new(SendRTDTAudioPacketResponse) },
+				RequestDefn: func() protoreflect.MessageDescriptor {
+					return new(SendRTDTAudioPacketRequest).ProtoReflect().Descriptor()
+				},
+				ResponseDefn: func() protoreflect.MessageDescriptor {
+					return new(SendRTDTAudioPacketResponse).ProtoReflect().Descriptor()
+				},
+				Help: "SendAudioPacket sends a raw RTDT speech/Opus packet to a live session.",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(RTDTServiceServer).SendAudioPacket(ctx, request.(*SendRTDTAudioPacketRequest), response.(*SendRTDTAudioPacketResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "RTDTService.SendAudioPacket"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"InvitesStream": {
+				IsStreaming: true,
+				NewRequest:  func() proto.Message { return new(RTDTInvitesStreamRequest) },
+				NewResponse: func() proto.Message { return new(ReceivedRTDTInvite) },
+				RequestDefn: func() protoreflect.MessageDescriptor {
+					return new(RTDTInvitesStreamRequest).ProtoReflect().Descriptor()
+				},
+				ResponseDefn: func() protoreflect.MessageDescriptor { return new(ReceivedRTDTInvite).ProtoReflect().Descriptor() },
+				Help:         "InvitesStream streams RTDT session invites received by the local client.",
+				ServerStreamHandler: func(x interface{}, ctx context.Context, request proto.Message, stream ServerStream) error {
+					return x.(RTDTServiceServer).InvitesStream(ctx, request.(*RTDTInvitesStreamRequest), streamerImpl[*ReceivedRTDTInvite]{s: stream})
+				},
+				ClientStreamHandler: func(conn ClientConn, ctx context.Context, request proto.Message) (ClientStream, error) {
+					method := "RTDTService.InvitesStream"
+					return conn.Stream(ctx, method, request)
+				},
+			},
+			"AckReceivedInvites": {
+				IsStreaming:  false,
+				NewRequest:   func() proto.Message { return new(AckRequest) },
+				NewResponse:  func() proto.Message { return new(AckResponse) },
+				RequestDefn:  func() protoreflect.MessageDescriptor { return new(AckRequest).ProtoReflect().Descriptor() },
+				ResponseDefn: func() protoreflect.MessageDescriptor { return new(AckResponse).ProtoReflect().Descriptor() },
+				Help:         "AckReceivedInvites acks received RTDT invite events.",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(RTDTServiceServer).AckReceivedInvites(ctx, request.(*AckRequest), response.(*AckResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "RTDTService.AckReceivedInvites"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"SessionUpdatesStream": {
+				IsStreaming: true,
+				NewRequest:  func() proto.Message { return new(RTDTSessionUpdatesStreamRequest) },
+				NewResponse: func() proto.Message { return new(RTDTSessionUpdatedEvent) },
+				RequestDefn: func() protoreflect.MessageDescriptor {
+					return new(RTDTSessionUpdatesStreamRequest).ProtoReflect().Descriptor()
+				},
+				ResponseDefn: func() protoreflect.MessageDescriptor { return new(RTDTSessionUpdatedEvent).ProtoReflect().Descriptor() },
+				Help:         "SessionUpdatesStream streams updates about RTDT sessions.",
+				ServerStreamHandler: func(x interface{}, ctx context.Context, request proto.Message, stream ServerStream) error {
+					return x.(RTDTServiceServer).SessionUpdatesStream(ctx, request.(*RTDTSessionUpdatesStreamRequest), streamerImpl[*RTDTSessionUpdatedEvent]{s: stream})
+				},
+				ClientStreamHandler: func(conn ClientConn, ctx context.Context, request proto.Message) (ClientStream, error) {
+					method := "RTDTService.SessionUpdatesStream"
+					return conn.Stream(ctx, method, request)
+				},
+			},
+			"AckSessionUpdates": {
+				IsStreaming:  false,
+				NewRequest:   func() proto.Message { return new(AckRequest) },
+				NewResponse:  func() proto.Message { return new(AckResponse) },
+				RequestDefn:  func() protoreflect.MessageDescriptor { return new(AckRequest).ProtoReflect().Descriptor() },
+				ResponseDefn: func() protoreflect.MessageDescriptor { return new(AckResponse).ProtoReflect().Descriptor() },
+				Help:         "AckSessionUpdates acks received RTDT session update events.",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(RTDTServiceServer).AckSessionUpdates(ctx, request.(*AckRequest), response.(*AckResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "RTDTService.AckSessionUpdates"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"ChatMessagesStream": {
+				IsStreaming: true,
+				NewRequest:  func() proto.Message { return new(RTDTChatMessagesStreamRequest) },
+				NewResponse: func() proto.Message { return new(RTDTChatMessageReceivedEvent) },
+				RequestDefn: func() protoreflect.MessageDescriptor {
+					return new(RTDTChatMessagesStreamRequest).ProtoReflect().Descriptor()
+				},
+				ResponseDefn: func() protoreflect.MessageDescriptor {
+					return new(RTDTChatMessageReceivedEvent).ProtoReflect().Descriptor()
+				},
+				Help: "ChatMessagesStream streams RTDT chat messages received by the local client.",
+				ServerStreamHandler: func(x interface{}, ctx context.Context, request proto.Message, stream ServerStream) error {
+					return x.(RTDTServiceServer).ChatMessagesStream(ctx, request.(*RTDTChatMessagesStreamRequest), streamerImpl[*RTDTChatMessageReceivedEvent]{s: stream})
+				},
+				ClientStreamHandler: func(conn ClientConn, ctx context.Context, request proto.Message) (ClientStream, error) {
+					method := "RTDTService.ChatMessagesStream"
+					return conn.Stream(ctx, method, request)
+				},
+			},
+			"AckChatMessages": {
+				IsStreaming:  false,
+				NewRequest:   func() proto.Message { return new(AckRequest) },
+				NewResponse:  func() proto.Message { return new(AckResponse) },
+				RequestDefn:  func() protoreflect.MessageDescriptor { return new(AckRequest).ProtoReflect().Descriptor() },
+				ResponseDefn: func() protoreflect.MessageDescriptor { return new(AckResponse).ProtoReflect().Descriptor() },
+				Help:         "AckChatMessages acks received RTDT chat message events.",
+				ServerHandler: func(x interface{}, ctx context.Context, request, response proto.Message) error {
+					return x.(RTDTServiceServer).AckChatMessages(ctx, request.(*AckRequest), response.(*AckResponse))
+				},
+				ClientHandler: func(conn ClientConn, ctx context.Context, request, response proto.Message) error {
+					method := "RTDTService.AckChatMessages"
+					return conn.Request(ctx, method, request, response)
+				},
+			},
+			"AudioPacketsStream": {
+				IsStreaming: true,
+				NewRequest:  func() proto.Message { return new(RTDTAudioPacketsStreamRequest) },
+				NewResponse: func() proto.Message { return new(RTDTAudioPacketReceivedEvent) },
+				RequestDefn: func() protoreflect.MessageDescriptor {
+					return new(RTDTAudioPacketsStreamRequest).ProtoReflect().Descriptor()
+				},
+				ResponseDefn: func() protoreflect.MessageDescriptor {
+					return new(RTDTAudioPacketReceivedEvent).ProtoReflect().Descriptor()
+				},
+				Help: "AudioPacketsStream streams live RTDT speech/Opus packets.\n" +
+					"This is a live-only stream: packets sent while disconnected are not replayed.",
+				ServerStreamHandler: func(x interface{}, ctx context.Context, request proto.Message, stream ServerStream) error {
+					return x.(RTDTServiceServer).AudioPacketsStream(ctx, request.(*RTDTAudioPacketsStreamRequest), streamerImpl[*RTDTAudioPacketReceivedEvent]{s: stream})
+				},
+				ClientStreamHandler: func(conn ClientConn, ctx context.Context, request proto.Message) (ClientStream, error) {
+					method := "RTDTService.AudioPacketsStream"
+					return conn.Stream(ctx, method, request)
+				},
+			},
+		},
+	}
+}
+
 var help_messages = map[string]map[string]string{
 	"VersionRequest": {
 		"@": "",
@@ -1803,6 +2417,221 @@ var help_messages = map[string]map[string]string{
 		"nick":          "nick is the nick of the client that sent the resource.",
 		"disk_path":     "disk_path is the path of the file in the local client's disk.",
 		"file_metadata": "file_metadata is the metadata about the file.",
+	},
+	"RTDTSessionMetadata": {
+		"@":           "RTDTSessionMetadata is the metadata of an RTDT session.",
+		"generation":  "generation is incremented on every session change.",
+		"session_rv":  "session_rv is the unique session RV identifier.",
+		"size":        "size is the maximum number of concurrent users in the session.",
+		"description": "description is the user-supplied description of the session.",
+		"owner":       "owner is the user ID of the owner of the session.",
+		"admins":      "admins is the list of extra admin user IDs.",
+		"publishers":  "publishers is the list of session publishers.",
+		"is_instant":  "is_instant determines if this is an instant/ephemeral session.",
+	},
+	"RTDTSessionPublisher": {
+		"@":            "RTDTSessionPublisher describes a publisher in an RTDT session.",
+		"publisher_id": "publisher_id is the user ID of the publisher.",
+		"peer_id":      "peer_id is the RTDT peer ID of the publisher.",
+		"alias":        "alias is the nick/alias of the publisher.",
+	},
+	"RTDTSessionMember": {
+		"@":                  "RTDTSessionMember describes a member in an RTDT session.",
+		"uid":                "uid is the user ID of the member.",
+		"peer_id":            "peer_id is the RTDT peer ID reserved for the member.",
+		"tag":                "tag is the invite tag used to track invitation responses.",
+		"sent_timestamp":     "sent_timestamp is when the invite was sent, in unix seconds.",
+		"publisher":          "publisher is true when the member is allowed to publish.",
+		"accepted":           "accepted is true when the member accepted the invite.",
+		"accepted_timestamp": "accepted_timestamp is when the member accepted the invite, in unix seconds.",
+		"is_admin":           "is_admin is true when the member is currently an admin of the session.",
+		"is_owner":           "is_owner is true when the member is the owner of the session.",
+	},
+	"RTDTLivePeer": {
+		"@":                "RTDTLivePeer describes a live RTDT peer.",
+		"peer_id":          "peer_id is the RTDT peer ID of the live peer.",
+		"has_sound_stream": "has_sound_stream is true when the peer currently has a sound stream.",
+		"has_sound":        "has_sound is true when sound is currently detected for the peer.",
+		"volume_gain":      "volume_gain is the per-peer playback gain in dB.",
+		"buffered_count":   "buffered_count is the number of audio packets currently buffered.",
+	},
+	"RTDTLiveSession": {
+		"@":         "RTDTLiveSession stores live session information.",
+		"hot_audio": "hot_audio is true when the local client currently has hot audio on this session.",
+		"peers":     "peers is the list of live peers currently known in the session.",
+	},
+	"RTDTSession": {
+		"@":                  "RTDTSession is the full RTDT session information exposed by clientrpc.",
+		"metadata":           "metadata is the RTDT session metadata.",
+		"local_peer_id":      "local_peer_id is the RTDT peer ID of the local client.",
+		"next_peer_id":       "next_peer_id is the next peer ID to be assigned by admins/owners.",
+		"members":            "members is the list of known members of the session.",
+		"gc":                 "gc is the associated GC ID, when this session is linked to a GC.",
+		"local_is_admin":     "local_is_admin is true when the local client can admin the session.",
+		"local_is_publisher": "local_is_publisher is true when the local client may publish to the session.",
+		"live":               "live stores current live-session information when the session is joined.",
+	},
+	"ListRTDTSessionsRequest": {
+		"@": "ListRTDTSessionsRequest requests the list of RTDT sessions.",
+	},
+	"ListRTDTSessionsResponse": {
+		"@":        "ListRTDTSessionsResponse returns the list of RTDT sessions.",
+		"sessions": "sessions is the list of known RTDT sessions.",
+	},
+	"GetRTDTSessionRequest": {
+		"@":          "GetRTDTSessionRequest requests a single RTDT session by RV.",
+		"session_rv": "session_rv is the hex-encoded session RV.",
+	},
+	"GetRTDTSessionResponse": {
+		"@":       "GetRTDTSessionResponse returns a single RTDT session.",
+		"session": "session is the requested RTDT session.",
+	},
+	"CreateRTDTSessionRequest": {
+		"@":           "CreateRTDTSessionRequest requests creating a new RTDT session.",
+		"size":        "size is the maximum number of concurrent users in the session.",
+		"description": "description is the session description.",
+	},
+	"CreateRTDTSessionResponse": {
+		"@":       "CreateRTDTSessionResponse returns the created RTDT session.",
+		"session": "session is the created RTDT session.",
+	},
+	"CreateInstantRTDTSessionRequest": {
+		"@":     "CreateInstantRTDTSessionRequest requests creating a new instant RTDT session.",
+		"users": "users is the list of users to invite, by nick/alias/id.",
+	},
+	"CreateInstantRTDTSessionResponse": {
+		"@":       "CreateInstantRTDTSessionResponse returns the created instant RTDT session.",
+		"session": "session is the created RTDT session.",
+	},
+	"InviteToRTDTSessionRequest": {
+		"@":                    "InviteToRTDTSessionRequest requests inviting users to an RTDT session.",
+		"session_rv":           "session_rv is the hex-encoded session RV.",
+		"allowed_as_publisher": "allowed_as_publisher determines if invitees can publish to the session.",
+		"users":                "users is the list of users to invite, by nick/alias/id.",
+	},
+	"InviteToRTDTSessionResponse": {
+		"@": "InviteToRTDTSessionResponse is the response to an invite request.",
+	},
+	"AcceptRTDTSessionInviteRequest": {
+		"@":                   "AcceptRTDTSessionInviteRequest requests accepting a received RTDT invite.",
+		"inviter":             "inviter is the inviter user, by nick/alias/id.",
+		"session_rv":          "session_rv is the hex-encoded session RV.",
+		"accept_as_publisher": "accept_as_publisher determines if the local client should publish to the session.",
+	},
+	"AcceptRTDTSessionInviteResponse": {
+		"@": "AcceptRTDTSessionInviteResponse is the response to an accept invite request.",
+	},
+	"CancelRTDTSessionInviteRequest": {
+		"@":          "CancelRTDTSessionInviteRequest requests canceling a received RTDT invite.",
+		"inviter":    "inviter is the inviter user, by nick/alias/id.",
+		"session_rv": "session_rv is the hex-encoded session RV.",
+	},
+	"CancelRTDTSessionInviteResponse": {
+		"@": "CancelRTDTSessionInviteResponse is the response to a cancel invite request.",
+	},
+	"JoinLiveRTDTSessionRequest": {
+		"@":          "JoinLiveRTDTSessionRequest requests joining the live RTDT session.",
+		"session_rv": "session_rv is the hex-encoded session RV.",
+	},
+	"JoinLiveRTDTSessionResponse": {
+		"@": "JoinLiveRTDTSessionResponse is the response to a join live session request.",
+	},
+	"LeaveLiveRTDTSessionRequest": {
+		"@":          "LeaveLiveRTDTSessionRequest requests leaving the live RTDT session.",
+		"session_rv": "session_rv is the hex-encoded session RV.",
+	},
+	"LeaveLiveRTDTSessionResponse": {
+		"@": "LeaveLiveRTDTSessionResponse is the response to a leave live session request.",
+	},
+	"ExitRTDTSessionRequest": {
+		"@":          "ExitRTDTSessionRequest requests permanently exiting an RTDT session.",
+		"session_rv": "session_rv is the hex-encoded session RV.",
+	},
+	"ExitRTDTSessionResponse": {
+		"@": "ExitRTDTSessionResponse is the response to an exit session request.",
+	},
+	"DissolveRTDTSessionRequest": {
+		"@":          "DissolveRTDTSessionRequest requests dissolving an RTDT session.",
+		"session_rv": "session_rv is the hex-encoded session RV.",
+	},
+	"DissolveRTDTSessionResponse": {
+		"@": "DissolveRTDTSessionResponse is the response to a dissolve request.",
+	},
+	"SendRTDTChatMessageRequest": {
+		"@":          "SendRTDTChatMessageRequest requests sending a chat message in a live RTDT session.",
+		"session_rv": "session_rv is the hex-encoded session RV.",
+		"message":    "message is the chat message to send.",
+	},
+	"SendRTDTChatMessageResponse": {
+		"@": "SendRTDTChatMessageResponse is the response to an RTDT chat message request.",
+	},
+	"SendRTDTAudioPacketRequest": {
+		"@":           "SendRTDTAudioPacketRequest requests sending a raw RTDT speech/Opus packet to a live RTDT session.",
+		"session_rv":  "session_rv is the hex-encoded session RV.",
+		"timestamp":   "timestamp is the packet timestamp relative to the session's media stream.",
+		"opus_packet": "opus_packet is the raw Opus packet payload.",
+	},
+	"SendRTDTAudioPacketResponse": {
+		"@": "SendRTDTAudioPacketResponse is the response to an RTDT audio packet request.",
+	},
+	"RTDTSessionInvite": {
+		"@":                    "RTDTSessionInvite is the information about an RTDT session invite.",
+		"session_rv":           "session_rv is the hex-encoded session RV.",
+		"size":                 "size is the maximum number of concurrent users in the session.",
+		"description":          "description is the session description.",
+		"allowed_as_publisher": "allowed_as_publisher determines if the local client may publish to the session.",
+		"peer_id":              "peer_id is the RTDT peer ID assigned to the local client.",
+		"gc":                   "gc is the associated GC ID, when the invite refers to a GC session.",
+		"is_instant":           "is_instant determines if the invite refers to an instant/ephemeral session.",
+	},
+	"RTDTInvitesStreamRequest": {
+		"@":            "RTDTInvitesStreamRequest requests a stream of RTDT invite notifications.",
+		"unacked_from": "unacked_from specifies the last processed RTDT invite event.",
+	},
+	"ReceivedRTDTInvite": {
+		"@":            "ReceivedRTDTInvite is one received RTDT invite event.",
+		"sequence_id":  "sequence_id is an opaque sequential ID.",
+		"inviter_uid":  "inviter_uid is the user ID of the inviter.",
+		"inviter_nick": "inviter_nick is the nick of the inviter.",
+		"timestamp_ms": "timestamp_ms is when the invite was received, in unix milliseconds.",
+		"invite":       "invite is the invite details.",
+	},
+	"RTDTSessionUpdatesStreamRequest": {
+		"@":            "RTDTSessionUpdatesStreamRequest requests a stream of RTDT session updates.",
+		"unacked_from": "unacked_from specifies the last processed RTDT session update event.",
+	},
+	"RTDTSessionUpdatedEvent": {
+		"@":            "RTDTSessionUpdatedEvent is one RTDT session update event.",
+		"sequence_id":  "sequence_id is an opaque sequential ID.",
+		"updater_uid":  "updater_uid is the user ID of the remote updater.",
+		"updater_nick": "updater_nick is the nick of the remote updater.",
+		"session_rv":   "session_rv is the hex-encoded session RV.",
+		"session":      "session is the full latest session state after the update.",
+		"initial_join": "initial_join is true when the update caused the first full local join into the session.",
+	},
+	"RTDTChatMessagesStreamRequest": {
+		"@":            "RTDTChatMessagesStreamRequest requests a stream of RTDT chat messages.",
+		"unacked_from": "unacked_from specifies the last processed RTDT chat message event.",
+	},
+	"RTDTChatMessageReceivedEvent": {
+		"@":           "RTDTChatMessageReceivedEvent is one RTDT chat message event.",
+		"sequence_id": "sequence_id is an opaque sequential ID.",
+		"session_rv":  "session_rv is the hex-encoded session RV.",
+		"publisher":   "publisher is the publisher that sent the message.",
+		"message":     "message is the received chat message.",
+		"timestamp":   "timestamp is the stream-level timestamp of the message.",
+	},
+	"RTDTAudioPacketsStreamRequest": {
+		"@": "RTDTAudioPacketsStreamRequest requests a live stream of RTDT audio packets.\n" +
+			"If session_rv is set, only audio packets from that RTDT session are sent.",
+		"session_rv": "session_rv optionally filters events to a specific hex-encoded session RV.",
+	},
+	"RTDTAudioPacketReceivedEvent": {
+		"@":           "RTDTAudioPacketReceivedEvent is one RTDT speech/Opus packet received by the local client.",
+		"session_rv":  "session_rv is the hex-encoded session RV.",
+		"peer_id":     "peer_id is the RTDT peer ID of the sender.",
+		"timestamp":   "timestamp is the packet timestamp relative to the sender's media stream.",
+		"opus_packet": "opus_packet is the raw Opus packet payload.",
 	},
 	"RMPrivateMessage": {
 		"@":       "RMPrivateMessage is the network-level routed private message.",
